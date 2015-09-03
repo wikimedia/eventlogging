@@ -37,7 +37,7 @@ except ImportError:
 
 __all__ = ('http_get', 'integer_types', 'items', 'json', 'monotonic_clock',
            'string_types', 'unquote_plus', 'urisplit', 'urlopen', 'urlencode',
-           'uuid5')
+           'uuid5', 'long')
 
 PY3 = sys.version_info[0] == 3
 
@@ -48,13 +48,15 @@ if PY3:
                               parse_qsl, SplitResult)
     string_types = str,
     integer_types = int,
+    long = int
 else:
     items = operator.methodcaller('iteritems')
     from urllib import unquote, urlencode
     from urllib2 import urlopen
     from urlparse import urlsplit, parse_qsl, SplitResult
-    string_types = basestring,
+    string_types = (basestring, str, unicode)
     integer_types = int, long
+    long = long
 
 
 def urisplit(uri):

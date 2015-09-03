@@ -10,6 +10,8 @@
 from __future__ import unicode_literals
 
 import copy
+import datetime
+import dateutil.parser
 import logging
 import re
 import os
@@ -17,14 +19,17 @@ import sys
 import threading
 import traceback
 
-from .compat import items, monotonic_clock, urisplit, urlencode, parse_qsl
+from .compat import (
+    items, monotonic_clock, urisplit, urlencode, parse_qsl,
+    integer_types, string_types, long
+)
 from .factory import get_reader, cast_string
 
 
 __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
            'setup_logging', 'unflatten', 'update_recursive',
            'uri_delete_query_item', 'uri_append_query_items', 'uri_force_raw',
-           'parse_etcd_uri')
+           'parse_etcd_uri', 'datetime_from_uuid1', 'datetime_from_timestamp')
 
 
 class PeriodicThread(threading.Thread):
@@ -60,7 +65,7 @@ class PeriodicThread(threading.Thread):
                     # interrupted mid-nap to run immediately. But before we
                     # do, we reset the flag.
                     self.ready.clear()
-            except Exception, e:
+            except Exception as e:
                 trace = traceback.format_exc()
                 self.logger.warn('Child thread exiting, exception %s', trace)
                 raise e
@@ -212,6 +217,38 @@ def parse_etcd_uri(etcd_uri):
         for h in parts.netloc.split(',')
     ])
     return etcd_kwargs
+
+
+def datetime_from_uuid1(u):
+    return datetime.datetime.fromtimestamp(
+        (u.time - long(0x01b21dd213814000))*100/1e9
+    )
+
+
+def datetime_from_timestamp(t):
+    """
+    Returns a datetime.datetime instance from
+    a timestamp.
+    :param t: int, long or float timestamp, OR a string timestamp parseable
+              by dateutil.parser.parse.
+    """
+    if isinstance(t, float):
+        dt = datetime.datetime.fromtimestamp(t)
+    elif isinstance(t, integer_types):
+        # try to parse this as seconds
+        try:
+            dt = datetime.datetime.fromtimestamp(t)
+        except ValueError:
+            # try to parse this as milliseconds
+            dt = datetime.datetime.fromtimestamp(t/1000.0)
+    elif isinstance(t, string_types):
+        dt = dateutil.parser.parse(t)
+    else:
+        raise RuntimeError(
+            "Could not parse datetime from timestamp %s."
+            "%s is not a datetime parseable type" % (t, type(t))
+        )
+    return dt
 
 
 def setup_logging():

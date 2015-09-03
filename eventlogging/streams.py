@@ -10,13 +10,10 @@
 from __future__ import unicode_literals
 
 import io
-import json
 import re
 import socket
 
-import zmq
-
-from .compat import items
+from .compat import items, json
 
 
 __all__ = ('iter_json', 'iter_unicode', 'make_canonical', 'pub_socket',
@@ -39,6 +36,8 @@ SOCKET_BUFFER_SIZE = 64 * 1024
 
 def pub_socket(endpoint):
     """Get a pre-configured ZeroMQ publisher."""
+    import zmq
+
     context = zmq.Context.instance()
     sock = context.socket(zmq.PUB)
     if hasattr(zmq, 'HWM'):
@@ -52,6 +51,8 @@ def pub_socket(endpoint):
 
 def sub_socket(endpoint, identity='', subscribe=''):
     """Get a pre-configured ZeroMQ subscriber."""
+    import zmq
+
     context = zmq.Context.instance()
     sock = context.socket(zmq.SUB)
     if hasattr(zmq, 'HWM'):

@@ -11,20 +11,11 @@
 
 """
 import collections
-import datetime
 import glob
 import imp
 import inspect
-import json
 
 from functools import partial
-from kafka import KafkaClient
-from kafka import KeyedProducer
-from kafka import SimpleProducer
-from kafka.producer.base import Producer
-from kafka.common import KafkaTimeoutError
-from pykafka import KafkaClient as PyKafkaClient
-from pykafka import BalancedConsumer
 
 import logging
 import logging.handlers
@@ -32,17 +23,18 @@ import os
 import re
 import socket
 import sys
-import sqlalchemy
 import statsd
 import time
 import traceback
 import uuid
 
-from .compat import items
+from .compat import items, json
 from .utils import PeriodicThread, uri_delete_query_item
 from .factory import writes, reads
 from .streams import stream, pub_socket, sub_socket, udp_socket
 from .jrm import store_sql_events, DB_FLUSH_INTERVAL
+from .schema import scid_from_event, id_from_event, datetime_from_event
+from .topic import topic_from_event, TopicNotFound
 
 __all__ = ('load_plugins',)
 
@@ -71,13 +63,12 @@ def mongodb_writer(uri, database='events'):
 
     client = pymongo.MongoClient(uri)
     db = client[database]
-    datetime_from_timestamp = datetime.datetime.fromtimestamp
 
     while 1:
         event = (yield)
-        event['timestamp'] = datetime_from_timestamp(event['timestamp'])
-        event['_id'] = event['uuid']
-        collection = event['schema']
+        event['timestamp'] = datetime_from_event(event)
+        event['_id'] = id_from_event(event)
+        collection = scid_from_event(event)[0]
         db[collection].insert(event)
 
 
@@ -85,8 +76,8 @@ def mongodb_writer(uri, database='events'):
 def kafka_writer(
     path,
     producer='simple',
-    topic='eventlogging_%(schema)s',
-    key='%(schema)s_%(revision)s',
+    topic=None,
+    key='{schema}_{revision}',
     blacklist=None,
     raw=False,
     **kafka_producer_args
@@ -110,14 +101,21 @@ def kafka_writer(
 
         topic     - Python format string topic name.
                     If the incoming event is a dict (not a raw string)
-                    topic will be interpolated against event.  I.e.
-                    topic % event.  Default: eventlogging_%(schema)s
+                    topic will be formatted against event.  I.e.
+                    topic.format(**event).  Default: None.
 
-        key       - Python format string key of the event message in Kafka.
-                    If the incoming event is a dict (not a raw string)
-                    key will be interpolated against event.  I.e.
-                    key % event.  Default: %(schema)s_%(revision)s.
+                    If topic is None, the topic will be extracted from
+                    the event meta data rather than formatting
+                    against event.  This means that the 'topic' key must
+                    be in the event metadata. You _must_ provide a static
+                    topic if raw=True.
+
+        key       - Format string key of the message in Kafka.
+                    The key will be formatted against event.  I.e.
+                    key.format(**event).  Default: '{schema}_{revision}'.
                     This is ignored if you are using the simple producer.
+                    If raw=True, formatting will not happen, and the
+                    key will be used exactly as set.
 
         blacklist - Pattern string matching a list of schemas that should not
                     be written. This is useful to keep high volume schemas
@@ -125,7 +123,22 @@ def kafka_writer(
                     be ignored if the incoming events are raw.
 
         raw       - Should the events be written as raw (encoded) or not?
+                    NOTE:  no topic or key interpolation will be done
+                    if raw is True.  Instead, topic and key
+                    will be used as provided.
     """
+    from kafka import KafkaClient
+    from kafka import KeyedProducer
+    from kafka import SimpleProducer
+    from kafka.producer.base import Producer
+    from kafka.common import KafkaTimeoutError
+
+    # Cannot use raw without setting a specific topic to produce to.
+    if raw and not topic:
+        raise Exception(
+            'Cannot produce raw events to Kafka '
+            'without setting topic parameter.'
+        )
 
     # Brokers should be in the uri path
     brokers = path.strip('/')
@@ -149,11 +162,8 @@ def kafka_writer(
 
     kafka_producer = ProducerClass(kafka, **kafka_producer_args)
 
-    # These will be used if incoming events are not interpolatable.
-    default_topic = topic.encode('utf8')
-    default_key = key.encode('utf8')
-
-    kafka_topic_create_timeout_seconds = 0.1
+    # Wait only this long for a new topic to be created.
+    kafka_topic_create_timeout_seconds = 1.0
 
     if blacklist:
         blacklist_pattern = re.compile(blacklist)
@@ -163,64 +173,89 @@ def kafka_writer(
     while 1:
         event = (yield)
 
-        # If event is a dict (not Raw) then we can interpolate topic and key
-        # as format strings.
-        # E.g. message_topic = 'eventlogging_%(schema)s' % event.
-        # WARNING!  Be sure that your topic and key strings don't try
-        # to interpolate out a field in event that doesn't exist!
-        if isinstance(event, dict):
-            if blacklist_pattern and blacklist_pattern.match(event['schema']):
+        # If raw, just utf-8 encode
+        if raw:
+            message_topic = topic.encode('utf-8')
+            message_key = key.encode('utf-8')
+            message = event.encode('utf-8')
+
+        # Else get topic and key from event dict
+        # and produce json string.
+        else:
+            schema_name, revision = scid_from_event(event)
+
+            # If we want to blacklist this schema from being produced.
+            if (
+                blacklist_pattern and
+                blacklist_pattern.match(schema_name)
+            ):
                 logging.debug(
-                    '%s is blacklisted, not writing event %s.' %
-                    (event['schema'], event['uuid'])
+                    '%s is blacklisted, not writing event %s.' % schema_name
                 )
                 continue
 
-            message_topic = (topic % event).encode('utf8')
+            # Get topic from the event, possibly interpolating
+            # against topic as a format string.
+            try:
+                message_topic = topic_from_event(
+                    event,
+                    topic_format=topic
+                ).encode('utf-8')
+            # If we failed getting topic, log and skip the event.
+            except TopicNotFound as e:
+                logging.error('%s.  Skipping event' % e)
+                continue
+
+            # Format the key against the event
             if producer == 'keyed':
-                message_key = (key % event).encode('utf8')
-        else:
-            message_topic = default_topic
-            message_key = default_key
+                try:
+                    message_key = key.format(**event).encode('utf-8')
+                # If we failed getting key, log and skip the event.
+                except KeyError as e:
+                    logging.error(
+                        'Could not get message key from event. KeyError: %s. '
+                        'Skipping event.' % e
+                    )
+                    continue
+
+            message = json.dumps(event, sort_keys=True).encode('utf-8')
 
         try:
             # Make sure this topic exists before we attempt to produce to it.
-            # This call will timeout in kafka_topic_create_timeout_seconds.
+            # This call will timeout in topic_create_timeout_seconds.
             # This should return faster than this if this kafka client has
             # already cached topic metadata for this topic.  Otherwise
             # it will try to ask Kafka for it each time.  Make sure
             # auto.create.topics.enabled is true for your Kafka cluster!
-            kafka.ensure_topic_exists(
+            kafka_producer.client.ensure_topic_exists(
                 message_topic,
                 kafka_topic_create_timeout_seconds
             )
-        except KafkaTimeoutError:
+        except KafkaTimeoutError as e:
             error_message = "Failed to ensure Kafka topic %s exists " \
-                "in %f seconds when producing event" % (
+                "in %f seconds when producing event. (%s)" % (
                     message_topic,
-                    kafka_topic_create_timeout_seconds
+                    kafka_topic_create_timeout_seconds,
+                    e.message
                 )
-            if isinstance(event, dict):
-                error_message += " of schema %s revision %d" % (
-                    event['schema'],
-                    event['revision']
+            logging.error(error_message)
+            # If we are using a synchronous producer and the
+            # producer is configured to fail on error, then
+            # Re-raise the KafkaTimeoutError.
+            if not kafka_producer.async and kafka_producer.sync_fail_on_error:
+                raise e
+            # Else just skip the event.
+            else:
+                continue
+        else:
+            # send_messages() for the different producer types have different
+            # signatures.  Call it appropriately.
+            if producer == 'keyed':
+                kafka_producer.send_messages(
+                    message_topic, message_key, message
                 )
-            error_message += ". Skipping event. " \
-                "(This might be ok if this is a new topic.)"
-            logging.warn(error_message)
-            continue
-
-        if raw:
-            value = event.encode('utf-8')
-        else:
-            value = json.dumps(event, sort_keys=True)
-
-        # send_messages() for the different producer types have different
-        # signatures.  Call it appropriately.
-        if producer == 'keyed':
-            kafka_producer.send_messages(message_topic, message_key, value)
-        else:
-            kafka_producer.send_messages(message_topic, value)
+            else:
+                kafka_producer.send_messages(message_topic, message)
 
 
 def insert_stats(stats, inserted_count):
@@ -238,6 +273,8 @@ def insert_stats(stats, inserted_count):
 @writes('mysql', 'sqlite')
 def sql_writer(uri, replace=False, statsd_host=''):
     """Writes to an RDBMS, creating tables for SCIDs and rows for events."""
+    import sqlalchemy
+
     # Don't pass 'replace' and 'statsd_host' parameter to SQLAlchemy.
     uri = uri_delete_query_item(uri, 'replace')
     uri = uri_delete_query_item(uri, 'statsd_host')
@@ -454,6 +491,9 @@ def kafka_reader(
     that have not been inserted into MySQL.  Future work
     will have to fix this problem somehow.  Perhaps a callback?
     """
+    from pykafka import KafkaClient as PyKafkaClient
+    from pykafka import BalancedConsumer
+
     # The identity param is used to define the consumer group name.
     # If identity is empty create a default unique one. This ensures we don't
     # accidentally put consumers to the same group. Explicitly specify identity

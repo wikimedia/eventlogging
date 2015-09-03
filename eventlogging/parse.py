@@ -44,8 +44,11 @@ import uuid
 from .compat import json, unquote_plus, uuid5
 from .crypto import keyhasher, rotating_key
 
-
-__all__ = ('LogParser', 'ncsa_to_unix', 'ncsa_utcnow', 'capsule_uuid')
+__all__ = (
+    'LogParser', 'ncsa_to_unix',
+    'ncsa_utcnow', 'capsule_uuid',
+    'hash_ip'
+)
 
 # Format string (as would be passed to `strftime`) for timestamps in
 # NCSA Common Log Format.

@@ -34,7 +34,9 @@ MEDIAWIKI_TIMESTAMP = '%Y%m%d%H%M%S'
 TABLE_NAME_FORMAT = '%s_%s'
 
 # An iterable of properties that should not be stored in the database.
-NO_DB_PROPERTIES = ('recvFrom', 'revision', 'schema', 'seqId')
+NO_DB_PROPERTIES = (
+    'recvFrom', 'revision', 'schema', 'seqId', 'topic', 'userAgent'
+)
 
 # A dictionary mapping database engine names to table defaults.
 ENGINE_TABLE_OPTIONS = {

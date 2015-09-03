@@ -116,7 +116,7 @@ def validate(log_line):
         return None, [err]
 
     try:
-        scid = event['schema'], event['revision']
+        scid = eventlogging.scid_from_event(event)
     except KeyError as err:
         return event, [err]
 

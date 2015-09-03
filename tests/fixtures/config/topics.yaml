@@ -1,0 +1,6 @@
+mediawiki_Edit:
+    schema: Edit
+
+mediawiki_EditMetaTest:
+    schema: EditMetaTest
+
