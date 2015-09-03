@@ -9,7 +9,7 @@
 import contextlib
 import inspect
 
-from .compat import items, parse_qsl, urisplit
+from .compat import items, parse_qsl, urisplit, string_types
 
 __all__ = ('apply_safe', 'drive', 'get_reader', 'get_writer', 'handle',
            'reads', 'writes')
@@ -25,7 +25,7 @@ def cast_string(v):
     Python type
     """
 
-    if type(v) not in (str, unicode):
+    if type(v) not in string_types:
         return v
 
     # attempt to convert v to a bool
@@ -46,8 +46,12 @@ def cast_string(v):
     return v
 
 
-def apply_safe(f, kwargs):
-    """Apply a function with only those arguments that it would accept."""
+def apply_safe(f, kwargs, callback=None):
+    """
+    Apply a function with only those arguments that it would accept.
+    If callback is given, the callback will be called with the result
+    of f before returning that result
+    """
     # If the function takes a '**' arg, all keyword args are safe.
     # If it doesn't, we have to remove any arguments that are not
     # present in the function's signature.
@@ -66,7 +70,12 @@ def apply_safe(f, kwargs):
     for k, v in items(kwargs):
         kwargs[k] = cast_string(v)
 
-    return f(*args, **kwargs)
+    result = f(*args, **kwargs)
+
+    if callback:
+        callback(result)
+
+    return result
 
 
 def handle(handlers, uri):

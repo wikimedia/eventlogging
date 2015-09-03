@@ -8,7 +8,9 @@
 """
 from __future__ import unicode_literals
 
+import datetime
 import unittest
+import uuid
 
 import eventlogging
 
@@ -74,7 +76,6 @@ class UtilsTestCase(unittest.TestCase):
         """`parse_etcd_uri` returns proper kwargs from uri"""
         etcd_uri = 'https://hostA:123,hostB:234?' \
                    'cert=/path/to/cert&allow_redirect=True'
-        print("URI %s" % etcd_uri)
 
         etcd_kwargs = eventlogging.utils.parse_etcd_uri(etcd_uri)
         expected_kwargs = {
@@ -85,3 +86,33 @@ class UtilsTestCase(unittest.TestCase):
         }
         for key in expected_kwargs.keys():
             self.assertEqual(etcd_kwargs[key], expected_kwargs[key])
+
+    def test_datetime_from_uuid1(self):
+        """`test_datetime_from_uuid1` returns correct datetime"""
+        u = uuid.uuid1()
+        ts = ((u.time - long(0x01b21dd213814000))*100/1e9)
+        self.assertEqual(
+            eventlogging.utils.datetime_from_uuid1(u),
+            datetime.datetime.fromtimestamp(ts)
+        )
+
+    def test_datetime_from_timestamp(self):
+        """`datetime_from_timestamp` returns correct datetime"""
+        ts = 1447270770
+        ts_milli = 1447270770.00000
+        dt = datetime.datetime.fromtimestamp(ts)
+        iso8601 = dt.isoformat()
+        self.assertEqual(
+            eventlogging.utils.datetime_from_timestamp(ts),
+            dt
+        )
+        self.assertEqual(
+            eventlogging.utils.datetime_from_timestamp(ts_milli),
+            dt
+        )
+        self.assertEqual(
+            eventlogging.utils.datetime_from_timestamp(iso8601),
+            dt
+        )
+        with self.assertRaises(RuntimeError):
+            eventlogging.utils.datetime_from_timestamp(self)

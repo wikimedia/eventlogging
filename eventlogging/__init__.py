@@ -23,8 +23,10 @@ from .jrm import *
 from .parse import *
 from .schema import *
 from .streams import *
+from .topic import *
 from .crypto import *
 from .utils import *
+
 
 # The fact that schema validation is entrusted to a third-party module
 # is an implementation detail that a consumer of this package's API
@@ -32,6 +34,7 @@ from .utils import *
 # bindings for :exc:`jsonschema.ValidationError` and
 # :exc:`jsonschema.SchemaError`.
 from jsonschema import ValidationError, SchemaError
+from .service import *
 
 __version__ = '0.9'
 

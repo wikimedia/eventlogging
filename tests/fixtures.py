@@ -17,104 +17,198 @@ import sqlalchemy
 
 
 TEST_SCHEMA_SCID = ('TestSchema', 123)
+TEST_META_SCHEMA_SCID = ('TestMetaSchema', 1)
+
+# Schema for a meta subobject.
+# TODO: Should this be somewhere more important than just in test fixtures.py?
+#       e.g. in a json schema we can load with $ref?
+_meta_properties = {
+    'domain': {
+        'type': 'string',
+        'description': 'the domain the event pertains to'
+    },
+    'uri': {
+        'type': 'string',
+        'description': 'the unique URI identifying the event',
+        'format': 'uri'
+    },
+    'topic': {
+        'type': 'string'
+    },
+    'request_id': {
+        'pattern': '^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$',
+        'type': 'string',
+        'description': 'the unique UUID v1 ID of the event '
+        'derived from the X-Request-Id header'
+    },
+    'dt': {
+        'type': 'string',
+        'description': 'the time stamp of the event, in ISO8601 format',
+        'format': 'date-time'
+    },
+    'revision': {
+        'type': 'integer',
+        'description': 'The revision of this schema'
+    },
+    'client_ip': {
+        'type': 'string',
+        'description': 'IP (possibly hashed) of the client '
+        'submitting this event.'
+    },
+    'id': {
+        'pattern': '^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$',
+        'type': 'string',
+        'description': 'the unique ID of this event; should match the dt field'
+    },
+    'schema': {
+        'type': 'string',
+        'description': 'The name of this schema'
+    }
+}
 
 _schemas = {
-    eventlogging.schema.CAPSULE_SCID: {
-        'properties': {
-            'clientIp': {
-                'type': 'string'
+    eventlogging.schema.CAPSULE_SCID[0]: {
+        eventlogging.schema.CAPSULE_SCID[1]: {
+            'properties': {
+                'clientIp': {
+                    'type': 'string'
+                },
+                'event': {
+                    'type': 'object',
+                    'required': True
+                },
+                'wiki': {
+                    'type': 'string',
+                    'required': True
+                },
+                'webHost': {
+                    'type': 'string'
+                },
+                'revision': {
+                    'type': 'integer',
+                    'required': True
+                },
+                'schema': {
+                    'type': 'string',
+                    'required': True
+                },
+                # TODO: Make change to EventCapsule on meta to include topic
+                'topic': {
+                    'type': 'string',
+                },
+                'recvFrom': {
+                    'type': 'string',
+                    'required': True
+                },
+                'seqId': {
+                    'type': 'integer'
+                },
+                'timestamp': {
+                    'type': 'number',
+                    'required': True,
+                    'format': 'utc-millisec'
+                },
+                'uuid': {
+                    'type': 'string',
+                    'required': True,
+                    'format': 'uuid5-hex'
+                },
+                'userAgent': {
+                    'type': 'string',
+                }
             },
-            'event': {
-                'type': 'object',
-                'required': True
-            },
-            'wiki': {
-                'type': 'string',
-                'required': True
-            },
-            'webHost': {
-                'type': 'string'
-            },
-            'revision': {
-                'type': 'integer',
-                'required': True
-            },
-            'schema': {
-                'type': 'string',
-                'required': True
-            },
-            'recvFrom': {
-                'type': 'string',
-                'required': True
-            },
-            'seqId': {
-                'type': 'integer'
-            },
-            'timestamp': {
-                'type': 'number',
-                'required': True,
-                'format': 'utc-millisec'
-            },
-            'uuid': {
-                'type': 'string',
-                'required': True,
-                'format': 'uuid5-hex'
-            }
-        },
-        'additionalProperties': False
+            'additionalProperties': False
+        }
     },
-    eventlogging.schema.ERROR_SCID: {
-        'properties': {
-            'rawEvent': {
-                'type': 'string',
-                'required': True
-            },
-            'message': {
-                'type': 'string',
-                'required': True
-            },
-            'code': {
-                'type': 'string',
-                'required': True,
-                'enum': [
-                    'processor',
-                    'consumer',
-                    'validation'
-                ],
-            },
-            'schema': {
-                'type': 'string',
-                'required': True
-            },
-            'revision': {
-                'type': 'integer',
-                'required': True
+    eventlogging.schema.ERROR_SCID[0]: {
+        eventlogging.schema.ERROR_SCID[1]: {
+            'properties': {
+                'rawEvent': {
+                    'type': 'string',
+                    'required': True
+                },
+                'message': {
+                    'type': 'string',
+                    'required': True
+                },
+                'code': {
+                    'type': 'string',
+                    'required': True,
+                    'enum': [
+                        'processor',
+                        'consumer',
+                        'validation'
+                    ],
+                },
+                'schema': {
+                    'type': 'string',
+                    'required': True
+                },
+                'revision': {
+                    'type': 'integer',
+                    'required': True
+                }
             }
         }
     },
-    TEST_SCHEMA_SCID: {
-        'properties': {
-            'value': {
-                'type': 'string',
-                'required': True
-            },
-            'nested': {
-                'type': 'object',
-                'properties': {
-                    'deeplyNested': {
-                        'type': 'object',
-                        'properties': {
-                            'pi': {
-                                'type': 'number',
+    TEST_SCHEMA_SCID[0]: {
+        TEST_SCHEMA_SCID[1]: {
+            'properties': {
+                'value': {
+                    'type': 'string',
+                    'required': True
+                },
+                'nested': {
+                    'type': 'object',
+                    'properties': {
+                        'deeplyNested': {
+                            'type': 'object',
+                            'properties': {
+                                'pi': {
+                                    'type': 'number',
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    },
+    TEST_META_SCHEMA_SCID[0]: {
+        TEST_META_SCHEMA_SCID[1]: {
+            'description': 'Test Schema with Meta Data in Subobject',
+            'title': 'TestMetaSchema',
+            '$schema': 'http://json-schema.org/draft-04/schema#',
+            'required': [
+                'required_field',
+            ],
+            'type': 'object',
+            'properties': {
+                'required_field': {
+                    'type': 'string',
+                },
+                'optional_field': {
+                    'type': 'string',
+                },
+                'meta': {
+                    'required': [
+                        'topic',
+                        'schema',
+                        'revision',
+                        'uri',
+                        'request_id',
+                        'id',
+                        'dt',
+                        'domain',
+                        'client_ip'
+                    ],
+                    'type': 'object',
+                    'properties': _meta_properties
+                }
+            }
+        }
     }
 }
-
 
 _event = {
     'event': {
@@ -133,7 +227,8 @@ _event = {
     'recvFrom': 'fenari',
     'revision': 123,
     'schema': 'TestSchema',
-    'uuid': 'babb66f34a0a5de3be0c6513088be33e'
+    'uuid': 'babb66f34a0a5de3be0c6513088be33e',
+    'topic': 'use_specified_revision'
 }
 
 # {} is preferred and PHP side of EL
@@ -150,6 +245,38 @@ _incorrectly_serialized_empty_event = {
     'revision': 123,
     'schema': 'TestSchema',
     'uuid': 'babb66f34a0a5de3be0c6513088be33e'
+}
+
+# An event that doesn't use EventCapsule,
+# Instead this uses meta subobject style metadata
+_event_with_meta = {
+    'meta': {
+        'topic': 'topic_with_meta',
+        'schema': 'TestMetaSchema',
+        'revision': 1,
+        'domain': 'en.m.wikipedia.org',
+        'uri': 'http://en.m.wikipedia.org/nonya',
+        'request_id': '12345678-1234-5678-1234-567812345678',
+        'id': '12345678-1234-5678-1234-567812345678',
+        'dt': '2015-10-30T00:00:00',
+        'client_ip': '127.0.0.1',
+    },
+    'required_field': 'I am required',
+    'optional_field': 'I am optional'
+}
+
+
+_topic_config = {
+    'use_latest_revision': {
+        'schema': 'TestSchema'
+    },
+    'use_specified_revision': {
+        'schema': 'TestSchema',
+        'revision': 123
+    },
+    'topic_with_meta': {
+        'schema': 'TestMetaSchema'
+    }
 }
 
 
@@ -187,9 +314,11 @@ class SchemaTestMixin(object):
         """Stub `http_get_schema` and pre-fill schema cache."""
         super(SchemaTestMixin, self).setUp()
         self.event = copy.deepcopy(_event)
+        self.event_with_meta = copy.deepcopy(_event_with_meta)
         self.incorrectly_serialized_empty_event = copy.deepcopy(
             _incorrectly_serialized_empty_event)
         eventlogging.schema.schema_cache = copy.deepcopy(_schemas)
+        eventlogging.topic.topic_config = copy.deepcopy(_topic_config)
         eventlogging.schema.http_get_schema = mock_http_get_schema
         self.event_generator = _get_event()
 

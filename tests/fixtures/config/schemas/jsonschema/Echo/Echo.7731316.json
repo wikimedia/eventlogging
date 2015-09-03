@@ -1,0 +1,64 @@
+{
+    "description": "Logs events related to the generation of notifications via the Echo extension",
+    "properties": {
+        "version": {
+            "type": "string",
+            "required": true,
+            "description": "References the full specifications of the current version of Echo (adding new notification types or changing the schema requires a version change), example: 1.1"
+        },
+        "eventId": {
+            "type": "integer",
+            "required": true,
+            "description": "Unique identifier of the event triggering the current notification"
+        },
+        "notificationType": {
+            "type": "string",
+            "required": true,
+            "description": "Type of notification, the actual content of each message is documented in the page referenced in the iteration field"
+        },
+        "notificationGroup": {
+            "type": "string",
+            "required": true,
+            "enum": [
+                "positive",
+                "interactive",
+                "neutral",
+                "negative",
+                "system",
+                "other"
+            ],
+            "description": "Notification group."
+        },
+        "sender": {
+            "type": "string",
+            "required": true,
+            "description": "Identifies the agent performing the action that triggers the notification, it can be any of the following: (1) an anonymous user (IP address), (2) a registered user (user ID), (3) MediaWiki (-1)"
+        },
+        "recipientUserId": {
+            "type": "integer",
+            "required": true,
+            "description": "Recipient user ID"
+        },
+        "recipientEditCount": {
+            "type": "integer",
+            "description": "Recipient lifetime edit count"
+        },
+        "eventSource": {
+            "type": "string",
+            "description": "Identifies the context in which the notification was triggered. This is mostly useful for notifications that can be generated from different UI elements or via API requests."
+        },
+        "deliveryMethod": {
+            "type": "string",
+            "required": true,
+            "enum": [
+                "web",
+                "email"
+            ],
+            "description": "Describes the method used for delivering the notification to the recipient. 'web' is for on-site delivery, the notification is logged regardless of whether the user has disabled web notifications/badges. 'email' only logs email notifications for users with authenticated email addresses and no preference set explicitly disabling email."
+        },
+        "revisionId": {
+            "type": "integer",
+            "description": "Revision ID of the edit that the event is for"
+        }
+    }
+}

@@ -39,8 +39,8 @@ class Worker(Thread):
             func, args, kargs = self.tasks.get()
             try:
                 func(*args, **kargs)
-            except Exception, e:
-                print 'Worker error: %s.' % e
+            except Exception as e:
+                print('Worker error: %s.' % e)
             self.tasks.task_done()
 
 
@@ -198,11 +198,11 @@ def weighted_choice(choices):
 
 
 def main():
-    print 'Initializing...'
+    print('Initializing...')
     sleep_interval, generators, optional_values, endpoint = get_arguments()
     capsule_schema = get_schema('EventCapsule', CAPSULE_REVISION)
     pool = ThreadPool(POOL_SIZE)
-    print 'Sending events...'
+    print('Sending events...')
     count = 0
     try:
         while True:
@@ -215,7 +215,7 @@ def main():
             time_to_sleep = max(sleep_interval - (t2 - t1), 0)
             time.sleep(time_to_sleep)
     except KeyboardInterrupt:
-        print '\n%d events sent, exiting.' % count
+        print('\n%d events sent, exiting.' % count)
 
 
 if __name__ == '__main__':

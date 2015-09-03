@@ -85,8 +85,9 @@ def iter_files(path):
 
 
 def iter_pubs(config_dir):
-    """Discover local EventLogging publishers. Assumes really a tcp stream """
-    # TODO Kafka client side stream not reported
+    """
+    Discover local EventLogging publishers. Assumes a tcp:// (ZeroMQ) stream
+    """
 
     publishers = {}
     logger = logging.getLogger('Log')

@@ -1,0 +1,73 @@
+#!/usr/bin/env python -OO
+# -*- coding: utf-8 -*-
+
+import argparse
+import logging
+import signal
+import textwrap
+import yaml
+
+from eventlogging import EventLoggingService
+from eventlogging import (init_schema_cache, init_topic_config,
+                          get_writer, setup_logging)
+
+
+ap = argparse.ArgumentParser(
+    description=textwrap.dedent(EventLoggingService.__doc__),
+    formatter_class=argparse.RawTextHelpFormatter,
+    fromfile_prefix_chars='@'
+)
+
+ap.add_argument(
+    '--port',
+    default='8085',
+    help='Port on which to listen for requests.',
+)
+
+ap.add_argument(
+    '--topic-config',
+    default='./config/topics.yaml',
+    help='Topic -> schema config file',
+)
+
+ap.add_argument(
+    '--num-processes',
+    default=1,
+    help='Number of tornado processes to spawn.  0 will start as many'
+    'processes as there are cores.  Default 1.',
+)
+
+ap.add_argument('output', nargs='+', help='URIs of output streams.')
+
+
+if __name__ == "__main__":
+    setup_logging()
+    args = ap.parse_args()
+
+    # Initialize topic_config and schema_cache with schemas from local files.
+    init_topic_config(args.config)
+    init_schema_cache()
+
+    # Register a SIGHUP handler to reload all schemas
+    # and topic_config on SIGHUP.
+    def sighup_handler(signum, frame):
+        logging.info('Got SIGHUP, reloading topic_config and local schemas...')
+        init_topic_config(args.config)
+        init_schema_cache()
+    signal.signal(signal.SIGHUP, sighup_handler)
+
+    # TODO: Remove.  This is a temporary hack to allow topic
+    # in EventCapsule until we add this to the schema on meta.
+    from tests.fixtures import _schemas
+    from eventlogging.schema import cache_schema
+    cache_schema(
+        ('EventCapsule', 10981547),
+        _schemas['EventCapsule'][10981547]
+    )
+
+    service = EventLoggingService(
+        args.output
+    )
+
+    # Start listening for requests.
+    service.start(args.port, args.num_processes)

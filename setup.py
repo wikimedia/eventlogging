@@ -54,19 +54,25 @@ setup(
     zip_safe=False,
     test_suite='eventlogging.tests',
     install_requires=(
+        "python-dateutil>=2.2",
+        "jsonschema>=0.7",
+        "kafka-python>=0.9.4",
+        # To run eventlogging with python3 in debian, you'll need a at
+        # python-mysqldb >= 1.3.4, which is not available in Jessie.
+        # pip calls this library 'mysqlclient', so we specify that here.
+        "mysqlclient>=1.3.7",
+        "pygments>=1.5",
+        "pykafka==1.1.1",
         # python-etcd requires python-openssl >= 0.14, which is not
         # available in Trusty.  Our python-etcd package does work with
         # python-openssl 0.13-2 which is available via .deb.
         # Commenting out this python dependency and allowing puppet
         # to satisify it until we upgrade eventlogging servers to Jessie.
-        # "python-etcd>=0.3.3",
-        "jsonschema>=0.7",
-        "pygments>=1.5",
+        # "python-etcd>=0.4.0",
+        "PyYAML>=3.10",
         "pyzmq>=2.1",
         "sqlalchemy>=0.7",
-        "MySQL-python>=1.2.3",
-        "kafka-python>=0.9.3",
-        "pykafka>=1.0.3",
-        "statsd>=3.0"
+        "statsd>=3.0",
+        "tornado>=4.0",
     )
 )
