@@ -107,64 +107,86 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         """
         Topics url should return topics available as json object
         """
-        self.http_client.fetch(self.get_url('/v1/topics'),
-                               self.stop, method="GET")
+        self.http_client.fetch(
+            self.get_url('/v1/topics'),
+            self.stop,
+            method="GET"
+        )
         response = self.wait()
         self.assertEqual(200, response.code)
         self.assertTrue('"topic_with_meta": {"schema": "TestMetaSchema"}'
-                        in response.body)
+                        in str(response.body))
 
     def test_get_topic_happy_case(self):
         """
         Get an existing topic
         """
-        self.http_client.fetch(self.get_url('/v1/topics/topic_with_meta'),
-                                 self.stop, method="GET")
+        self.http_client.fetch(
+            self.get_url('/v1/topics/topic_with_meta'),
+            self.stop, method="GET"
+        )
         response = self.wait()
         self.assertEqual(200, response.code)
-        self.assertTrue('Test Schema with Meta Data in Subobject'
-                          in response.body)
+        self.assertTrue(
+            'Test Schema with Meta Data in Subobject' in str(response.body)
+        )
 
     def test_get_topic_does_not_exist(self):
         """
         Geting a non existing topic returns an error
         """
-        self.http_client.fetch(self.get_url('/v1/topics/bad_topic'),
-                                 self.stop, method="GET")
+        self.http_client.fetch(
+            self.get_url('/v1/topics/bad_topic'),
+            self.stop,
+            method="GET"
+        )
         response = self.wait()
         self.assertEqual(404, response.code)
 
     # Schema testing
     def test_get_schema_happy_case(self):
         headers = {'Content-type': 'application/json'}
-        self.http_client.fetch(self.get_url('/v1/schemas/TestMetaSchema/1'),
-                               self.stop, method="GET",
-                               headers=headers)
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/TestMetaSchema/1'),
+            self.stop,
+            method="GET",
+            headers=headers
+        )
         response = self.wait()
         self.assertEqual(200, response.code)
 
     def test_get_schema_no_version_happy_case(self):
         headers = {'Content-type': 'application/json'}
-        self.http_client.fetch(self.get_url('/v1/schemas/TestMetaSchema'),
-                               self.stop, method="GET",
-                               headers=headers)
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/TestMetaSchema'),
+            self.stop,
+            method="GET",
+            headers=headers
+        )
         response = self.wait()
         self.assertEqual(200, response.code)
 
-    # TODO test failing, tries to retrieve via http
-    # These don't work, but I don't think they should. - otto
-    # def test_get_schema_unexisting_version(self):
-    #     headers = {'Content-type': 'application/json'}
-    #     self.http_client.fetch(self.get_url('/v1/schemas/TestMetaSchema/123'),
-    #                            self.stop, method="GET",
-    #                            headers=headers)
-    #     response = self.wait()
-    #     self.assertEqual(404, response.code)
-    #
-    # def test_get_schema_unexisting_schema(self):
-    #     headers = {'Content-type': 'application/json'}
-    #     self.http_client.fetch(self.get_url('/v1/schemas/BadSchema'),
-    #                            self.stop, method="GET",
-    #                            headers=headers)
-    #     response = self.wait()
-    #     self.assertEqual(404, response.code)
+    # These return 404 because the schema cannot be
+    # retrieved from the http store and EventLogging just assumes
+    # that this means the schema does not exist.
+    def test_get_schema_http_failure(self):
+        headers = {'Content-type': 'application/json'}
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/TestMetaSchema/1234'),
+            self.stop,
+            method="GET",
+            headers=headers
+        )
+        response = self.wait()
+        self.assertEqual(404, response.code)
+
+    def test_get_schema_http_no_revision(self):
+        headers = {'Content-type': 'application/json'}
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/BadSchema'),
+            self.stop,
+            method="GET",
+            headers=headers
+        )
+        response = self.wait()
+        self.assertEqual(404, response.code)

@@ -13,6 +13,7 @@ import unittest
 import uuid
 
 import eventlogging
+from eventlogging.compat import long
 
 
 class FlattenUnflattenTestCase(unittest.TestCase):

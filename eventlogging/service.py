@@ -79,13 +79,14 @@ class EventLoggingService(tornado.web.Application):
         for uri in self.writers.keys():
             w = self.writers[uri]
             try:
-                result = w.send(event)
+                w.send(event)
             # If the writer coroutine has stopped (likley due to
             # an error during the previous send()), attempt to
             # recreate the writer now.
             except StopIteration as e:
                 logging.error(
-                    "Writer %s has stopped.  Attempting to restart." % uri
+                    "Writer %s has stopped: %s.  Attempting to restart." %
+                    (uri, e)
                 )
                 w = get_writer(uri)
                 self.writers[uri] = w
