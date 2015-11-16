@@ -3,6 +3,7 @@
 
 import argparse
 import logging
+import os
 import signal
 import textwrap
 
@@ -21,6 +22,19 @@ ap.add_argument(
     default='8085',
     help='Port on which to listen for requests.',
 )
+
+
+ap.add_argument(
+    '--schemas-path',
+    default=os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'config',
+        'schemas',
+        'jsonschema',
+    ),
+    help='Path to local schema repository',
+)
+
 
 ap.add_argument(
     '--topic-config',
@@ -43,15 +57,15 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     # Initialize topic_config and schema_cache with schemas from local files.
-    init_topic_config(args.config)
-    init_schema_cache()
+    init_topic_config(args.topic_config)
+    init_schema_cache(args.schemas_path)
 
     # Register a SIGHUP handler to reload all schemas
     # and topic_config on SIGHUP.
     def sighup_handler(signum, frame):
         logging.info('Got SIGHUP, reloading topic_config and local schemas...')
-        init_topic_config(args.config)
-        init_schema_cache()
+        init_topic_config(args.topic_config)
+        init_schema_cache(args.schemas_path)
     signal.signal(signal.SIGHUP, sighup_handler)
 
     # TODO: Remove.  This is a temporary hack to allow topic

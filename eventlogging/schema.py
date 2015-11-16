@@ -58,18 +58,6 @@ SCHEMA_URL_FORMAT = (
     SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2'
 )
 
-# Local file based jsonschemas will be loaded from SCHEMA_REPO_PATH.
-# This defaults to eventlogging/server/schemas/jsonschema, and
-# can be overridden by setting the SCHEMA_REPO_PATH environment variable.
-SCHEMA_REPO_PATH = os.environ.get(
-    'SCHEMA_REPO_PATH',
-    os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'config',
-        'schemas',
-        'jsonschema'
-    )
-)
 
 # Use this to extract schemas from a local file name
 # File names look either like:
@@ -96,13 +84,15 @@ schema_cache = {}
 schema_validator_cache = {}
 
 
-def init_schema_cache(schemas_path=SCHEMA_REPO_PATH):
+def init_schema_cache(schemas_path=None):
     """
-    Clears any cached schemas and then loads local schemas.
+    Clears any cached schemas and schema validators.
+    If schemas_path is provided, load_local_schemas is called.
     """
     schema_cache.clear()
     schema_validator_cache.clear()
-    load_local_schemas(schemas_path=schemas_path)
+    if schemas_path:
+        load_local_schemas(schemas_path=schemas_path)
 
 
 def get_schema(scid, encapsulate=False):
@@ -281,9 +271,16 @@ def load_local_schemas(schemas_path):
     schema_cache by calling get_schema with the
     scid extractd from the matched filename.
     """
-    # Loads all jsonschemas found in path into
+    # Loads all schemas found in path into
     # the in memory schema cache.
     logging.info("Loading local schemas from %s " % schemas_path)
+
+    if not os.path.isdir(schemas_path):
+        raise RuntimeError(
+            "Could not load local schemas. "
+            "%s is not a directory " % schemas_path
+        )
+
     for path, subdirs, files in os.walk(schemas_path):
         for f in files:
             file = os.path.join(path, f)
