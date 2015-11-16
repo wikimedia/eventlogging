@@ -34,7 +34,7 @@ TABLE_NAME_FORMAT = '%s_%s'
 
 # An iterable of properties that should not be stored in the database.
 NO_DB_PROPERTIES = (
-    'recvFrom', 'revision', 'schema', 'seqId', 'topic', 'userAgent'
+    'recvFrom', 'revision', 'schema', 'seqId', 'topic'
 )
 
 # A dictionary mapping database engine names to table defaults.

@@ -5,11 +5,9 @@ import argparse
 import logging
 import signal
 import textwrap
-import yaml
 
 from eventlogging import EventLoggingService
-from eventlogging import (init_schema_cache, init_topic_config,
-                          get_writer, setup_logging)
+from eventlogging import init_schema_cache, init_topic_config, setup_logging
 
 
 ap = argparse.ArgumentParser(

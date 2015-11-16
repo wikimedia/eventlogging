@@ -108,6 +108,6 @@ def topic_from_event(event, topic_format=None, default=None):
         except KeyError as e:
             raise TopicNotFound(
                 'Could not interpolate topic from event with format '
-                '\'%s\'. KeyError: %s' % (topic_format, e.message))
+                '\'%s\'. KeyError: %s' % (topic_format, e))
 
     return topic

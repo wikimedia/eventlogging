@@ -113,9 +113,8 @@ _schemas = {
                     'required': True,
                     'format': 'uuid5-hex'
                 },
-                'userAgent': {
-                    'type': 'string',
-                }
+                # NOTE: missing userAgent.
+                # Should add here and fix test_jrm.py accordingly.
             },
             'additionalProperties': False
         }
@@ -295,6 +294,12 @@ def mock_http_get_schema(scid):
     Used to detect when :func:`eventlogging.schemas.get_schema`
     delegates to HTTP retrieval.
     """
+
+    # Special case for test http get of non existent revision.
+    # See test_service.py test_get_schema_unexisting_version
+    if scid == ('TestMetaSchema', 1234):
+        raise eventlogging.SchemaError('Mock HTTP SchemaError.')
+
     raise HttpRequestAttempted('Attempted HTTP fetch: %s' % (scid,))
 
 
