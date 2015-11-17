@@ -10,9 +10,13 @@ import textwrap
 from eventlogging import EventLoggingService
 from eventlogging import init_schema_cache, init_topic_config, setup_logging
 
+if EventLoggingService.__doc__:
+    argparse_doc = EventLoggingService.__doc__
+else:
+    argparse_doc=''
 
 ap = argparse.ArgumentParser(
-    description=textwrap.dedent(EventLoggingService.__doc__),
+    description=textwrap.dedent(argparse_doc),
     formatter_class=argparse.RawTextHelpFormatter,
     fromfile_prefix_chars='@'
 )
