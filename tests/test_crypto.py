@@ -8,11 +8,12 @@
 """
 from __future__ import unicode_literals
 
-import logging
-import os
-import subprocess
-import shutil
-import tempfile
+# TODO: fix etcd tests
+# import logging
+# import os
+# import subprocess
+# import shutil
+# import tempfile
 import time
 import unittest
 
@@ -127,7 +128,8 @@ class RotatingKeyTestCase(unittest.TestCase):
 #
 #
 # # copy/pasted and modified from conftool integration tests
-# # https://github.com/wikimedia/operations-software-conftool/blob/master/conftool/tests/integration/__init__.py
+# # https://github.com/wikimedia/operations-software-conftool
+#      /blob/master/conftool/tests/integration/__init__.py
 #
 # class EtcdProcessHelper(object):
 #     def __init__(
@@ -139,7 +141,7 @@ class RotatingKeyTestCase(unittest.TestCase):
 #         cluster=False,
 #         tls=False
 #     ):
-#         self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
+    #  self.log = logging.getLogger(__name__ + '.' + self.__class__.__name__)
 #         self.base_directory = base_directory
 #         self.proc_name = proc_name
 #         self.port = port
@@ -152,7 +154,7 @@ class RotatingKeyTestCase(unittest.TestCase):
 #
 #     def run(self, proc_args=None):
 #         if self.proc is not None:
-#             raise Exception("etcd already running with pid %d", self.proc.pid)
+    #     raise Exception("etcd already running with pid %d", self.proc.pid)
 #         client = '%s127.0.0.1:%d' % (self.schema, self.port)
 #         daemon_args = [
 #             self.proc_name,

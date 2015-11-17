@@ -14,7 +14,8 @@ import tornado.gen
 import tornado.escape
 import tornado.httpserver
 
-from _codecs import *  # For UnicodeError
+# For UnicodeError
+from _codecs import *  # noqa
 import logging
 
 from . import ValidationError, SchemaError  # these are int __init__.py
