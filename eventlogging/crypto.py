@@ -20,7 +20,6 @@
 from __future__ import unicode_literals
 
 import binascii
-import etcd
 import hashlib
 import hmac
 import inspect
@@ -83,6 +82,12 @@ class SharedRotatingToken(object):
         :param etcd_kwargs: args to pass to etcd.Client.
                If allow_reconnect is not given, this will default to True.
         """
+
+        # Import etcd here so that we can avoid introducing
+        # an python-etcd dependency unless we actually are going to use it.
+        import etcd
+        self.etcd = etcd
+
         logging.debug("Using etcd for rotating shared token '%s' "
                       "with a ttl of %s seconds", name, lifetime)
 
@@ -102,7 +107,7 @@ class SharedRotatingToken(object):
         # if they are args that etcd.Client takes.
         etcd_kwargs = {
             k: v for k, v in items(kwargs)
-            if k in inspect.getargspec(etcd.Client.__init__).args
+            if k in inspect.getargspec(self.etcd.Client.__init__).args
         }
         # Default to allow_reconnect=True
         etcd_kwargs['allow_reconnect'] = etcd_kwargs.get(
@@ -129,7 +134,7 @@ class SharedRotatingToken(object):
         """
         try:
             res = self.etcd_client.read(self.etcd_key)
-        except etcd.EtcdKeyNotFound:
+        except self.etcd.EtcdKeyNotFound:
             res = self._set()
 
         # The future expiration timestamp is now + key's remaining ttl.
@@ -172,7 +177,7 @@ class SharedRotatingToken(object):
                 ttl=self.lifetime,
                 prevExist=False
             )
-        except etcd.EtcdAlreadyExist:
+        except self.etcd.EtcdAlreadyExist:
             pass
         # NOTE: It is possible, but very unlikely that between the
         # EtcdAlreadyExist exception AND this read, the key is
