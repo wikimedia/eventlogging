@@ -7,8 +7,8 @@ import os
 import signal
 import textwrap
 
-from eventlogging import EventLoggingService
 from eventlogging import init_schema_cache, init_topic_config, setup_logging
+from eventlogging.service import EventLoggingService
 
 if EventLoggingService.__doc__:
     argparse_doc = EventLoggingService.__doc__

@@ -34,7 +34,6 @@ from .utils import *
 # bindings for :exc:`jsonschema.ValidationError` and
 # :exc:`jsonschema.SchemaError`.
 from jsonschema import ValidationError, SchemaError
-from .service import *
 
 __version__ = '0.9'
 
