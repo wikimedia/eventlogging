@@ -60,7 +60,9 @@ setup(
         # To run eventlogging with python3 in debian, you'll need a at
         # python-mysqldb >= 1.3.4, which is not available in Jessie.
         # pip calls this library 'mysqlclient', so we specify that here.
-        "mysqlclient>=1.3.7",
+        # NOTE:  This is commented out until we no longer run on Jessie
+        # and we no longer use sudo python setup.py install to install.
+        # "mysqlclient>=1.3.7",
         "pygments>=1.5",
         "pykafka==1.1.1",
         # python-etcd requires python-openssl >= 0.14, which is not
@@ -73,6 +75,8 @@ setup(
         "pyzmq>=2.1",
         "sqlalchemy>=0.7",
         "statsd>=3.0",
-        "tornado>=4.0",
+        # NOTE:  This is commented out until we no longer run on Jessie
+        # and we no longer use sudo python setup.py install to install.
+        # "tornado>=4.0",
     )
 )
