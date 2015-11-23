@@ -13,7 +13,7 @@ from eventlogging.service import EventLoggingService
 if EventLoggingService.__doc__:
     argparse_doc = EventLoggingService.__doc__
 else:
-    argparse_doc=''
+    argparse_doc = ''
 
 ap = argparse.ArgumentParser(
     description=textwrap.dedent(argparse_doc),

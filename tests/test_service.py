@@ -8,7 +8,7 @@
 
 import copy
 from tornado.testing import AsyncHTTPTestCase
-from eventlogging import EventLoggingService
+from eventlogging.service import EventLoggingService
 
 import json
 from .fixtures import SchemaTestMixin
