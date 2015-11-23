@@ -209,10 +209,13 @@ def validate(event, encapsulate=True):
 
     # Get validator for this schema out of the cache, or
     # create a new validator and save it in the cache.
-    schema_validator_cache.setdefault(
-        scid,
-        get_validator(schema)(schema)
-    ).validate(event)
+    if scid in schema_validator_cache:
+        validator = schema_validator_cache[scid]
+    else:
+        validator = get_validator(schema)(schema)
+        schema_validator_cache[scid] = validator
+
+    validator.validate(event)
 
 
 def get_validator(schema):
