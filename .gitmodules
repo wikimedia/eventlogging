@@ -1,0 +1,3 @@
+[submodule "config/event-schemas"]
+	path = config/schemas
+	url = https://gerrit.wikimedia.org/r/mediawiki/event-schemas
