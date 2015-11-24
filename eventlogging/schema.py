@@ -73,6 +73,7 @@ SCHEMA_FILE_PATTERN = re.compile(r'([\w\-]+)\.(\d+)?(?:.)?(json|yaml|yml)')
 # SCID of the metadata object which wraps each capsule-style event.
 CAPSULE_SCID = ('EventCapsule', 10981547)
 
+# TODO: Make new meta style EventError on meta.
 ERROR_SCID = ('EventError', 14035058)
 
 # Schemas retrieved via HTTP or files are cached in this dictionary.

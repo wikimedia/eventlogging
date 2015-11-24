@@ -21,7 +21,10 @@ import logging
 from . import ValidationError, SchemaError  # these are int __init__.py
 from .compat import json
 from .factory import apply_safe, get_writer
-from .schema import validate, get_schema, schema_name_from_event
+from .schema import (
+    validate, get_schema, schema_name_from_event, id_from_event,
+    create_event_error
+)
 from .topic import (
     get_topic_config, scid_for_topic, schema_for_topic, topic_from_event,
     TopicNotConfigured, TopicNotFound,
@@ -45,10 +48,13 @@ class EventLoggingService(tornado.web.Application):
     until your event is ACKed by Kafka.
     """
 
-    def __init__(self, writer_uris):
+    def __init__(self, writer_uris, error_writer_uri=None):
         """
         :param writer_uris: A list of EventLogging writer_uris.  Each valid
         event will be written to each of these writers.
+
+        :param error_writer_uri: If configured, EventErrors will be written
+        to this writer.
         """
 
         routes = [
@@ -75,6 +81,13 @@ class EventLoggingService(tornado.web.Application):
             self.writers[uri] = get_writer(uri)
             logging.info('Publishing valid JSON events to %s.', uri)
 
+        # Errored events will be written to this writer.
+        if error_writer_uri:
+            self.error_writer = get_writer(error_writer_uri)
+            logging.info('Publishing errored events to %s.', error_writer_uri)
+        else:
+            self.error_writer = None
+
     def send(self, event):
         """Send the event to configured eventlogging writers."""
         for uri in self.writers.keys():
@@ -93,24 +106,30 @@ class EventLoggingService(tornado.web.Application):
                 self.writers[uri] = w
                 w.send(event)
 
-    def process_json(
-        self,
-        event_string,
-        callback=None
-    ):
+    def decode_json(self, s, callback=None):
         """
-        Parse the event_string as json and validate it
-        using the schema configured for this event's topic.
-        If valid, the event will be sent to all configured writers.
+        Loads the string into an object.  If the top level
+        object is a dict, it will be wrapped in a list.
+        The result of this function should be a list of events.
 
-        If callback is set, then it is called with the
-        parsed and validated event object, otherwise
-        the event object is just returned.
+        :param s: json string
         """
+        events = json.loads(s.decode('utf-8'))
+        if isinstance(events, dict):
+            events = [events]
+        if callback:
+            callback(events)
+        else:
+            return events
 
-        # This will add schema and revision to the event
-        # based on topic config.
-        event = json.loads(event_string)
+    def process_event(self, event):
+        """
+        Validate the event using the schema configured for it's topic.
+        A valid event will be sent to the configured writers.
+
+        Returns True on success, otherwise some Exception will be thrown.
+
+        """
         topic = topic_from_event(event)
         schema_name, revision = scid_for_topic(topic)
 
@@ -129,15 +148,73 @@ class EventLoggingService(tornado.web.Application):
             encapsulate = True
 
         validate(event, encapsulate=encapsulate)
-
         # Send this processed event to all configured writers
-        # This will block until each writer finishes writing this event.
+        # This will block until each writer finishes writing
+        # this event.
         self.send(event)
+        return True
+
+    def handle_events(self, events, callback=None):
+        """
+        Calls process_event on each of the events.  Any
+        errors thrown by process_event will be caught, and EventError
+        objects will be returned describing the error that the offending
+        event caused.
+
+        :param events: list of event dicts
+        """
+        # This will add schema and revision to the event
+        # based on topic config.
+
+        event_errors = []
+        for event in events:
+            error_message = None
+
+            try:
+                self.process_event(event)
+
+            except TopicNotConfigured as e:
+                error_message = str(e)
+
+            except TopicNotFound as e:
+                error_message = 'Could not get topic from event %s. %s' % (
+                    id_from_event(event), e
+                )
+
+            except SchemaError as e:
+                error_message = 'Could not find schema for provided topic ' \
+                    'in event %s. %s' % (id_from_event, e)
+
+            except ValidationError as e:
+                error_message = 'Failed validating event %s of schema ' \
+                    '%s. %s' % (
+                        id_from_event(event),
+                        schema_name_from_event(event),
+                        e.message
+                    )
+
+            finally:
+                # If we encountered an error while processing this event,
+                # log it and create an EventError that will be returned.
+                if error_message:
+                    logging.error("Failed processing event: %s", error_message)
+                    event_error = create_event_error(
+                        json.dumps(event),
+                        error_message,
+                        # Should we make different error codes for these?
+                        'validation',
+                        event
+                    )
+                    event_errors.append(event_error)
+                    # If error_writer is configured, send this
+                    # EventError to it.
+                    if self.error_writer:
+                        self.error_writer.send(event_error)
 
         if callback:
-            callback(event)
+            callback(event_errors)
         else:
-            return event
+            return event_errors
 
     def start(self, port=8085, num_processes=1):
         """
@@ -151,49 +228,76 @@ class EventLoggingService(tornado.web.Application):
 
 
 class EventHandler(tornado.web.RequestHandler):
+
     @tornado.gen.coroutine
     def post(self):
         """
-        event_string json string is read in from POST body
-        and then asynchronously parsed and validated, and then
+        events_string json string is read in from POST body.
+        It can be a single event object or a list of event objects.
+        They will be asynchronously parsed and validated, and then
         written to configured EventLogging writers.  'topic'
-        must be set in the event meta data.
+        must be set in each event's meta data.
+
+        Reponses:
+        - 201 if all events are accepted.
+        - 207 if some but not all events are accepted.
+        - 400 if no events are accepted.
+
+        In case of any errored events, those events will be in the response
+        body as a JSON list of the form:
+        [{'event': {...}, 'error': 'String Error Message'}, ... ]
+
+        # TODO: Use EventError and configure an error writer like
+          eventlogging-processor?
         """
+        response_body = None
         if self.request.headers['Content-Type'] == 'application/json':
             try:
-                body = self.request.body.decode('utf-8')
-                if body:
-                    event = yield tornado.gen.Task(
-                        self.application.process_json,
-                        body
+                if self.request.body:
+                    # decode the json string into a list
+                    events = yield tornado.gen.Task(
+                        self.application.decode_json,
+                        self.request.body
                     )
-                    response_code = 201
-                    response_text = '%s event on topic %s accepted. ' % (
-                        schema_name_from_event(event), topic_from_event(event)
+                    # process and validate events
+                    event_errors = yield tornado.gen.Task(
+                        self.application.handle_events,
+                        events
                     )
+                    events_count = len(events)
+                    event_errors_count = len(event_errors)
+
+                    # If all events were accepted, then return 201
+                    if event_errors_count == 0:
+                        response_code = 201
+                        response_text = 'All %s events were accepted.' % (
+                            events_count
+                        )
+                    else:
+                        # Else if all events failed validation
+                        # return 400 and list of EventErrors.
+                        if events_count == event_errors_count:
+                            response_code = 400
+                            response_text = ('0 out of %s events were '
+                                             'accepted.') % events_count
+                        # Else at least 1 event failed validation.
+                        # Return 207 and the list of list of EventErrors.
+                        else:
+                            response_code = 207
+                            response_text = ('%s out of %s events '
+                                             'were accepted.') % (
+                                events_count - event_errors_count,
+                                events_count
+                            )
+                        response_body = json.dumps(event_errors)
                 else:
                     response_code = 400
                     response_text = 'Must provide body in request.'
+
             except UnicodeError as e:
                 response_code = 400
                 response_text = 'UnicodeError while utf-8 decoding '
                 'POST body: %s' % e
-            except TopicNotConfigured as e:
-                response_code = 404
-                response_text = str(e)
-            except TopicNotFound as e:
-                response_code = 400
-                response_text = 'Must provide topic. %s' % e
-            except IncorrectSerialization as e:
-                response_code = 400
-                response_text = e.message
-            except ValidationError as e:
-                response_code = 400
-                response_text = 'Unable to validate event. ' + e.message
-            except SchemaError as e:
-                response_code = 500
-                response_text = 'Could not find schema for provided '
-                'topic. %s' % e
 
         else:
             response_code = 400
@@ -205,6 +309,8 @@ class EventHandler(tornado.web.RequestHandler):
             logging.error(response_text)
 
         self.set_status(response_code, response_text)
+        if response_body:
+            self.write(response_body)
 
 
 class TopicHandler(tornado.web.RequestHandler):
@@ -223,6 +329,7 @@ class TopicHandler(tornado.web.RequestHandler):
 
 
 class SchemaHandler(tornado.web.RequestHandler):
+
     @tornado.gen.coroutine
     def get(self, schema_name, revision):
         """
@@ -251,10 +358,7 @@ class SchemaHandler(tornado.web.RequestHandler):
 
 
 class TopicConfigHandler(tornado.web.RequestHandler):
+
     def get(self):
         self.set_status(200)
         self.write(get_topic_config())
-
-
-class IncorrectSerialization(Exception):
-    pass

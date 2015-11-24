@@ -46,7 +46,8 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
                                self.stop, method="POST",
                                body=json.dumps(event), headers=headers)
         response = self.wait()
-        self.assertEqual(404, response.code)
+        self.assertEqual(400, response.code)
+        self.assertTrue("Topic badtopic not configured" in str(response.body))
 
     def test_post_valid_event_configured_topic(self):
         """
@@ -87,8 +88,7 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
                                body=body, headers=headers)
         response = self.wait()
         self.assertEqual(400, response.code)
-        self.assertTrue("'required_field' is a required property"
-                        in response.reason)
+        self.assertTrue("Failed validating event" in str(response.body))
 
     def test_post_event_missing_optional_field(self):
 
@@ -101,6 +101,55 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
                                body=body, headers=headers)
         response = self.wait()
         self.assertEqual(201, response.code)
+
+    def test_post_event_batch(self):
+
+        headers = {'Content-type': 'application/json'}
+        valid_eventA = copy.deepcopy(self.event_with_meta)
+        valid_eventB = copy.deepcopy(self.event_with_meta)
+        events = [valid_eventA, valid_eventB]
+        body = json.dumps(events)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(201, response.code)
+
+    def test_post_event_batch_one_invalid(self):
+
+        headers = {'Content-type': 'application/json'}
+        valid_eventA = copy.deepcopy(self.event_with_meta)
+        valid_eventB = copy.deepcopy(self.event_with_meta)
+        # this is supposed to be a string.
+        valid_eventB['required_field'] = 123
+
+        events = [valid_eventA, valid_eventB]
+        body = json.dumps(events)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(207, response.code)
+        event_errors = json.loads(response.body.decode('utf-8'))
+        self.assertEqual('validation', event_errors[0]['event']['code'])
+
+    def test_post_event_batch_all_invalid(self):
+
+        headers = {'Content-type': 'application/json'}
+        valid_eventA = copy.deepcopy(self.event_with_meta)
+        valid_eventA['required_field'] = 123
+        valid_eventB = copy.deepcopy(self.event_with_meta)
+        valid_eventB['required_field'] = 456
+        events = [valid_eventA, valid_eventB]
+        body = json.dumps(events)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(400, response.code)
+        event_errors = json.loads(response.body.decode('utf-8'))
+        self.assertEqual('validation', event_errors[0]['event']['code'])
+        self.assertEqual('validation', event_errors[1]['event']['code'])
 
     # Topic Testing
     def test_list_topics(self):
