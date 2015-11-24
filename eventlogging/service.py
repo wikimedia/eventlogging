@@ -128,7 +128,6 @@ class EventLoggingService(tornado.web.Application):
             # EventCapsule style meta data does use encapsulate
             encapsulate = True
 
-        # No encapsulation allowed with HTTP service (yet).
         validate(event, encapsulate=encapsulate)
 
         # Send this processed event to all configured writers

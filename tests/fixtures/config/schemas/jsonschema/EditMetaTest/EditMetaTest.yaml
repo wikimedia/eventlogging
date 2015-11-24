@@ -36,8 +36,6 @@ properties:
         description: the domain the event pertains to
     required:
       - topic
-      - schema
-      - revision
       - uri
       - id
       - dt
