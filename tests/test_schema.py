@@ -250,3 +250,14 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
             eventlogging.schema.scid_from_uri('file:///a/b/TestSchema/123'),
             scid
         )
+
+    def test_is_schema_cached(self):
+        self.assertTrue(eventlogging.schema.is_schema_cached(
+            ('TestSchema', 123)
+        ))
+        self.assertFalse(eventlogging.schema.is_schema_cached(
+            ('TestSchema', 999)
+        ))
+        self.assertFalse(eventlogging.schema.is_schema_cached(
+            ('NopeNope', 123)
+        ))

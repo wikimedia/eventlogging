@@ -8,7 +8,12 @@
 
 import copy
 from tornado.testing import AsyncHTTPTestCase
-from eventlogging.service import EventLoggingService
+import eventlogging
+from eventlogging.service import (
+    EventLoggingService, swagger_spec, append_spec_test_topic_and_schema
+)
+from eventlogging.schema import is_schema_cached
+from eventlogging.topic import schema_name_for_topic, TopicNotConfigured
 
 import json
 from .fixtures import SchemaTestMixin
@@ -25,6 +30,33 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         writers = []
         application = EventLoggingService(writers)
         return application
+
+    def test_spec(self):
+        """
+        Test ?spec returns swagger spec.
+        """
+        self.http_client.fetch(self.get_url('/?spec'),
+                               self.stop, method="GET")
+        response = self.wait()
+        self.assertEqual(200, response.code)
+
+    def test_event_post_spec_x_amples(self):
+        """
+        Test that the /v1/events POST x-amples
+        can be used for doing monitoring test POSTs
+        to /v1/events.
+        """
+        # This needs to be called if we want to be able to do the
+        # swagger x-amples test POST to /v1/events.
+        append_spec_test_topic_and_schema(overwrite=True)
+
+        events = swagger_spec['paths']['/v1/events']['post']['x-amples'][0]['request']['body']  # noqa
+        headers = {'Content-type': 'application/json'}
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=json.dumps(events), headers=headers)
+        response = self.wait()
+        self.assertEqual(201, response.code)
 
     # Event Testing
     def test_event_post_topic_does_not_exist(self):
@@ -151,3 +183,27 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         event_errors = json.loads(response.body.decode('utf-8'))
         self.assertEqual('validation', event_errors[0]['event']['code'])
         self.assertEqual('validation', event_errors[1]['event']['code'])
+
+    def test_append_spec_test_topic_and_schema(self):
+        # assert that the test spec topic and scid are not yet in the
+        # topic config or schema cache.
+        with self.assertRaises(TopicNotConfigured):
+            schema_name_for_topic(eventlogging.service.spec_test_topic)
+
+        self.assertFalse(is_schema_cached(eventlogging.service.spec_test_scid))
+
+        append_spec_test_topic_and_schema(overwrite=False)
+        # now the test spec topic and scid should exist
+        self.assertEqual(
+            eventlogging.service.spec_test_scid[0],
+            schema_name_for_topic(eventlogging.service.spec_test_topic)
+        )
+        self.assertTrue(is_schema_cached(eventlogging.service.spec_test_scid))
+
+        # with overwrite false, append_spec_test_topic_and_schema should
+        # now raise an exception.
+        with self.assertRaises(Exception):
+            append_spec_test_topic_and_schema(overwrite=False)
+
+        # but with overwrite True, all should be fine.
+        append_spec_test_topic_and_schema(overwrite=True)

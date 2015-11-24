@@ -17,8 +17,9 @@ import yaml
 from .schema import get_latest_schema_revision
 
 __all__ = (
-    'init_topic_config', 'latest_scid_for_topic', 'schema_allowed_in_topic',
-    'schema_name_for_topic', 'TopicNotConfigured', 'TopicNotFound'
+    'get_topic_config', 'init_topic_config', 'latest_scid_for_topic',
+    'schema_allowed_in_topic', 'schema_name_for_topic', 'TopicNotConfigured',
+    'TopicNotFound', 'update_topic_config'
 )
 
 topic_config = {}
@@ -35,12 +36,22 @@ class TopicNotFound(Exception):
 def init_topic_config(config_file):
     """
     Clears topic_config and loads the topic config from a file.
+
+    :param config_file: Path to topic config YAML file
     """
     topic_config.clear()
 
     # Load the topic_config from the config file.
     with open(config_file) as f:
         topic_config.update(yaml.load(f))
+
+
+def update_topic_config(c):
+    """
+    Given a single topic config c, updates this config
+    into the global topic_config.
+    """
+    topic_config.update(c)
 
 
 def get_topic_config():

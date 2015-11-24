@@ -1,0 +1,53 @@
+swagger: '2.0'
+info:
+  version: '1.0.0-beta'
+  title: HTTP Event Producer Service API
+  description: "Accepts and validates events and then sends them to configured writers."
+  contact:
+    name: Services
+    email: services@lists.wikimedia.org
+    url: https://www.mediawiki.org/wiki/Services
+  license:
+    name: Apache licence, v2
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+paths:
+
+  /v1/events:
+    post:
+      tags:
+        - Event production
+      description: "Validates events and dispatches them to configured outputs."
+      produces:
+        - text/plain
+      responses:
+        '201':
+          description: All events validated and accepted
+        '207':
+          description: Some but not all events are accepted
+        '400':
+          description: No events are accepted
+      x-amples:
+        - title: Produce a valid test event
+          request:
+            body:
+            - test: "this is a test"
+              meta:
+                topic: "test.event"
+                id: "12345678-1234-5678-1234-567812345678"
+          response:
+            status: 201
+
+  /v1/topics:
+    get:
+      tags:
+        - Topic
+      description: "Gets the topic configuration object"
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: The current topic->schema mapping and configuration
+      x-amples:
+        response:
+          status: 200

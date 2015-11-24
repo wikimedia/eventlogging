@@ -53,3 +53,24 @@ class TopicTestCase(SchemaTestMixin, unittest.TestCase):
             eventlogging.topic.schema_allowed_in_topic(
                 'not a schema', 'not a topic'
             )
+
+    def test_update_topic_config(self):
+        """
+        Test updating an individual topic config to the global topic config.
+        """
+        test_topic_config = {
+            'test.topic': {
+                'schema_name': 'test.schema'
+            }
+        }
+        local_topic_config = eventlogging.topic.get_topic_config()
+        local_topic_config.update(test_topic_config)
+
+        # append the new test topic config to the global topic config
+        eventlogging.topic.update_topic_config(test_topic_config)
+
+        # test that the global topic config is what it should be
+        self.assertEqual(
+            eventlogging.topic.get_topic_config(),
+            local_topic_config
+        )

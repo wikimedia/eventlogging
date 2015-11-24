@@ -7,8 +7,10 @@ import os
 import signal
 import textwrap
 
-from eventlogging import init_schema_cache, init_topic_config, setup_logging
-from eventlogging.service import EventLoggingService
+from eventlogging import setup_logging
+from eventlogging.service import (
+    EventLoggingService, init_schemas_and_topic_config
+)
 
 if EventLoggingService.__doc__:
     argparse_doc = EventLoggingService.__doc__
@@ -73,21 +75,16 @@ if __name__ == "__main__":
     setup_logging(config_file=args.log_config)
 
     # Initialize topic_config and schema_cache with schemas from local files.
-    init_topic_config(args.topic_config)
-    init_schema_cache(args.schemas_path)
+    init_schemas_and_topic_config(args.topic_config, args.schemas_path)
 
     # Register a SIGHUP handler to reload all schemas
     # and topic_config on SIGHUP.
     def sighup_handler(signum, frame):
         logging.info('Got SIGHUP, reloading topic_config and local schemas...')
-        init_topic_config(args.topic_config)
-        init_schema_cache(args.schemas_path)
+        init_schemas_and_topic_config(args.topic_config, args.schemas_path)
+
     signal.signal(signal.SIGHUP, sighup_handler)
 
-    service = EventLoggingService(
-        args.output,
-        args.error_output
-    )
-
+    service = EventLoggingService(args.output, args.error_output)
     # Start listening for requests.
     service.start(args.port, args.num_processes)

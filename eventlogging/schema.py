@@ -22,9 +22,9 @@ from jsonschema import ValidationError, SchemaError
 from .compat import integer_types, string_types, url_get
 
 __all__ = (
-    'get_schema', 'validate', 'init_schema_cache',
-    'get_latest_schema_revision', 'CAPSULE_SCID', 'ERROR_SCID',
-    'SCHEMA_RE_PATTERN'
+    'cache_schema', 'get_schema', 'validate', 'init_schema_cache',
+    'is_schema_cached', 'get_latest_schema_revision', 'CAPSULE_SCID',
+    'ERROR_SCID', 'SCHEMA_RE_PATTERN'
 )
 
 # Regular expression which matches valid schema names.
@@ -125,6 +125,13 @@ def cache_schema(scid, schema):
     schema_cache[name][revision] = schema
 
     return schema
+
+
+def is_schema_cached(scid):
+    """
+    Returns True of if the scid is already in schema_cache, False otherwise.
+    """
+    return scid[0] in schema_cache and scid[1] in schema_cache[scid[0]]
 
 
 # TODO: cache known latest schema instead of looking it up every time.
