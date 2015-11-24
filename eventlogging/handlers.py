@@ -182,17 +182,16 @@ def kafka_writer(
         # Else get topic and key from event dict
         # and produce json string.
         else:
-            schema_name, revision = scid_from_event(event)
 
             # If we want to blacklist this schema from being produced.
-            if (
-                blacklist_pattern and
-                blacklist_pattern.match(schema_name)
-            ):
-                logging.debug(
-                    '%s is blacklisted, not writing event %s.' % schema_name
-                )
-                continue
+            if blacklist_pattern:
+                schema_name, revision = scid_from_event(event)
+                if blacklist_pattern.match(schema_name):
+                    logging.debug(
+                        '%s is blacklisted, not writing event %s.' %
+                        schema_name
+                    )
+                    continue
 
             # Get topic from the event, possibly interpolating
             # against topic as a format string.
