@@ -33,7 +33,7 @@
 from __future__ import print_function, unicode_literals
 
 import sys
-reload(sys)
+reload(sys)  # noqa
 sys.setdefaultencoding('utf-8')
 
 import argparse
