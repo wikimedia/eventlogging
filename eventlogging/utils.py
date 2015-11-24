@@ -24,6 +24,7 @@ from .compat import (
     integer_types, string_types, long
 )
 from .factory import get_reader, cast_string
+from logging.config import fileConfig
 
 
 __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
@@ -251,14 +252,19 @@ def datetime_from_timestamp(t):
     return dt
 
 
-def setup_logging():
-    eventlogging_log_level = getattr(
-        logging, os.environ.get('LOG_LEVEL', 'INFO')
-    )
-    logging.basicConfig(stream=sys.stderr, level=eventlogging_log_level,
-                        format='%(asctime)s (%(threadName)-10s) %(message)s')
+def setup_logging(logfile=None):
+    if logfile:
+        fileConfig(logfile)
+    else:
+        eventlogging_log_level = getattr(
+            logging, os.environ.get('LOG_LEVEL', 'INFO')
+        )
+        logging.basicConfig(
+            stream=sys.stderr,
+            level=eventlogging_log_level,
+            format='%(asctime)s (%(threadName)-10s) %(message)s')
 
-    # Set module logging level to INFO, DEBUG is too noisy.
-    logging.getLogger("kafka").setLevel(logging.INFO)
-    logging.getLogger("pykafka").setLevel(logging.INFO)
-    logging.getLogger("kazoo").setLevel(logging.INFO)
+        # Set module logging level to INFO, DEBUG is too noisy.
+        logging.getLogger("kafka").setLevel(logging.INFO)
+        logging.getLogger("pykafka").setLevel(logging.INFO)
+        logging.getLogger("kazoo").setLevel(logging.INFO)
