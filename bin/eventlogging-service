@@ -84,15 +84,6 @@ if __name__ == "__main__":
         init_schema_cache(args.schemas_path)
     signal.signal(signal.SIGHUP, sighup_handler)
 
-    # TODO: Remove.  This is a temporary hack to allow topic
-    # in EventCapsule until we add this to the schema on meta.
-    from tests.fixtures import _schemas
-    from eventlogging.schema import cache_schema
-    cache_schema(
-        ('EventCapsule', 10981547),
-        _schemas['EventCapsule'][10981547]
-    )
-
     service = EventLoggingService(
         args.output,
         args.error_output

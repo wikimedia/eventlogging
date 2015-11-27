@@ -53,16 +53,16 @@ class UriSplitTestCase(unittest.TestCase):
 
 
 class HttpGetTestCase(unittest.TestCase):
-    """Test cases for ``http_get``."""
+    """Test cases for ``url_get``."""
 
     @unittest.skipIf(CI, 'Running in a CI environment')
-    def test_http_get(self):
-        """``http_get`` can pull content via HTTP."""
+    def test_url_get(self):
+        """``url_get`` can pull content via HTTP."""
         server = SingleServingHttpd('secret')
         server.start()
         if not server.is_started.wait(2):
             self.fail('Server did not start within 2 seconds')
-        response = eventlogging.http_get('http://127.0.0.1:44080')
+        response = eventlogging.url_get('http://127.0.0.1:44080')
         self.assertEqual(response, 'secret')
 
 

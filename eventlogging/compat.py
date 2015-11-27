@@ -35,7 +35,7 @@ except ImportError:
     import json
 
 
-__all__ = ('http_get', 'integer_types', 'items', 'json', 'monotonic_clock',
+__all__ = ('url_get', 'integer_types', 'items', 'json', 'monotonic_clock',
            'string_types', 'unquote_plus', 'urisplit', 'urlopen', 'urlencode',
            'uuid5', 'long')
 
@@ -77,7 +77,7 @@ def unquote_plus(unicode):
     return unquote(bytes).decode('utf-8')
 
 
-def http_get(url):
+def url_get(url):
     """Simple wrapper around the standard library's `urlopen` function which
     works around a circular ref. See <https://bugs.python.org/issue1208304>.
     """

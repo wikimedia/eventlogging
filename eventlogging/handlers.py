@@ -33,8 +33,7 @@ from .utils import PeriodicThread, uri_delete_query_item
 from .factory import writes, reads
 from .streams import stream, pub_socket, sub_socket, udp_socket
 from .jrm import store_sql_events, DB_FLUSH_INTERVAL
-from .schema import scid_from_event, id_from_event, datetime_from_event
-from .topic import topic_from_event, TopicNotFound
+from .topic import TopicNotFound
 
 __all__ = ('load_plugins',)
 
@@ -66,9 +65,9 @@ def mongodb_writer(uri, database='events'):
 
     while 1:
         event = (yield)
-        event['timestamp'] = datetime_from_event(event)
-        event['_id'] = id_from_event(event)
-        collection = scid_from_event(event)[0]
+        event['timestamp'] = event.datetime()
+        event['_id'] = event.id()
+        collection = event.schema_name()
         db[collection].insert(event)
 
 
@@ -185,7 +184,7 @@ def kafka_writer(
 
             # If we want to blacklist this schema from being produced.
             if blacklist_pattern:
-                schema_name, revision = scid_from_event(event)
+                schema_name, revision = event.scid()
                 if blacklist_pattern.match(schema_name):
                     logging.debug(
                         '%s is blacklisted, not writing event %s.' %
@@ -196,8 +195,7 @@ def kafka_writer(
             # Get topic from the event, possibly interpolating
             # against topic as a format string.
             try:
-                message_topic = topic_from_event(
-                    event,
+                message_topic = event.topic(
                     topic_format=topic
                 ).encode('utf-8')
             # If we failed getting topic, log and skip the event.

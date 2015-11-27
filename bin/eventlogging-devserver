@@ -9,11 +9,11 @@
 
   To use this, you probably want to set '$wgEventLoggingBaseUri' on your
   test wiki to point at the host and port of this web server. The value
-  '//localhost:8080/event.gif' should work.
+  '//localhost:8100/event.gif' should work.
 
   Example:
     event : {"wiki": "devwiki", "schema": "TrackedPageContentSaveComplete", "revision": 7872558, "event": {"revId": 10, "token": "foobar"}}
-    url : http://localhost:8080/event.gif?%7B%22wiki%22%3A+%22devwiki%22%2C+%22schema%22%3A+%22TrackedPageContentSaveComplete%22%2C+%22revision%22%3A+7872558%2C+%22event%22%3A+%7B%22revId%22%3A+10%2C+%22token%22%3A+%22foobar%22%7D%7D
+    url : http://localhost:8100/event.gif?%7B%22wiki%22%3A+%22devwiki%22%2C+%22schema%22%3A+%22TrackedPageContentSaveComplete%22%2C+%22revision%22%3A+7872558%2C+%22event%22%3A+%7B%22revId%22%3A+10%2C+%22token%22%3A+%22foobar%22%7D%7D
 
 
   usage: eventlogging-devserver [-h] [--host HOST] [--port PORT]
@@ -21,7 +21,7 @@
   optional arguments:
     -h, --help        show this help message and exit
     --host HOST       server host (default: 'localhost')
-    --port PORT       server port (default: 8080)
+    --port PORT       server port (default: 8100)
     --append-to PATH  file to append to (default: stdout)
     --verbose         print pretty colors to stderr
 
@@ -40,6 +40,7 @@ import argparse
 import itertools
 
 from wsgiref.simple_server import make_server, WSGIRequestHandler
+from eventlogging import Event
 
 import eventlogging
 import jsonschema
@@ -47,12 +48,11 @@ import jsonschema
 from pygments import formatters, highlight, lexers
 from pygments.console import ansiformat
 
-
 argparser = argparse.ArgumentParser(fromfile_prefix_chars='@')
 argparser.add_argument('--host', default='localhost',
                        help='server host (default: localhost)')
-argparser.add_argument('--port', default=8080, type=int,
-                       help='server port (default: 8080)')
+argparser.add_argument('--port', default=8100, type=int,
+                       help='server port (default: 8100)')
 argparser.add_argument('--append-to', type=argparse.FileType('a'),
                        default=sys.stdout,
                        help='file to append to (optional)')
@@ -111,12 +111,13 @@ def validate(log_line):
     Returns a tuple of (event, errors). If no object was decoded,
     'event' will be None."""
     try:
-        event = parser.parse(log_line)
+        event_dict = parser.parse(log_line)
+        event = Event.factory(event_dict)
     except ValueError as err:
         return None, [err]
 
     try:
-        scid = eventlogging.scid_from_event(event)
+        scid = event.scid()
     except KeyError as err:
         return event, [err]
 

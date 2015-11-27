@@ -221,6 +221,9 @@ def parse_etcd_uri(etcd_uri):
 
 
 def datetime_from_uuid1(u):
+    """
+    Extracts a datetime timestamp from a uuid1.
+    """
     return datetime.datetime.fromtimestamp(
         (u.time - long(0x01b21dd213814000))*100/1e9
     )
@@ -246,7 +249,7 @@ def datetime_from_timestamp(t):
         dt = dateutil.parser.parse(t)
     else:
         raise RuntimeError(
-            "Could not parse datetime from timestamp %s."
+            "Could not parse datetime from timestamp %s. "
             "%s is not a datetime parseable type" % (t, type(t))
         )
     return dt
