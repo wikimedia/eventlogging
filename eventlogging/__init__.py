@@ -17,6 +17,7 @@
 # flake8: noqa
 
 from .compat import *
+from .event import *
 from .factory import *
 from .handlers import *
 from .jrm import *

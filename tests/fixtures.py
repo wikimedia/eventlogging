@@ -13,6 +13,7 @@ import signal
 
 import eventlogging
 import eventlogging.factory
+from eventlogging.event import Event
 import sqlalchemy
 
 
@@ -46,10 +47,6 @@ _meta_properties = {
         'description': 'the time stamp of the event, in ISO8601 format',
         'format': 'date-time'
     },
-    'revision': {
-        'type': 'integer',
-        'description': 'The revision of this schema'
-    },
     'client_ip': {
         'type': 'string',
         'description': 'IP (possibly hashed) of the client '
@@ -60,9 +57,9 @@ _meta_properties = {
         'type': 'string',
         'description': 'the unique ID of this event; should match the dt field'
     },
-    'schema': {
+    'schema_uri': {
         'type': 'string',
-        'description': 'The name of this schema'
+        'description': 'The URI locating the schema for this event'
     }
 }
 
@@ -113,8 +110,11 @@ _schemas = {
                     'required': True,
                     'format': 'uuid5-hex'
                 },
-                # NOTE: missing userAgent.
-                # Should add here and fix test_jrm.py accordingly.
+                'userAgent': {
+                    'type': 'string',
+                    'description': 'User Agent from HTTP request',
+                    'required': False
+                }
             },
             'additionalProperties': False
         }
@@ -192,8 +192,7 @@ _schemas = {
                 'meta': {
                     'required': [
                         'topic',
-                        'schema',
-                        'revision',
+                        'schema_uri',
                         'uri',
                         'request_id',
                         'id',
@@ -227,7 +226,8 @@ _event = {
     'revision': 123,
     'schema': 'TestSchema',
     'uuid': 'babb66f34a0a5de3be0c6513088be33e',
-    'topic': 'use_specified_revision'
+    'topic': 'test_topic',
+    'userAgent': 'test user agent'
 }
 
 # {} is preferred and PHP side of EL
@@ -243,7 +243,8 @@ _incorrectly_serialized_empty_event = {
     'recvFrom': 'fenari',
     'revision': 123,
     'schema': 'TestSchema',
-    'uuid': 'babb66f34a0a5de3be0c6513088be33e'
+    'uuid': 'babb66f34a0a5de3be0c6513088be33e',
+    'userAgent': 'test user agent'
 }
 
 # An event that doesn't use EventCapsule,
@@ -251,8 +252,7 @@ _incorrectly_serialized_empty_event = {
 _event_with_meta = {
     'meta': {
         'topic': 'topic_with_meta',
-        'schema': 'TestMetaSchema',
-        'revision': 1,
+        'schema_uri': 'TestMetaSchema/1',
         'domain': 'en.m.wikipedia.org',
         'uri': 'http://en.m.wikipedia.org/nonya',
         'request_id': '12345678-1234-5678-1234-567812345678',
@@ -266,15 +266,12 @@ _event_with_meta = {
 
 
 _topic_config = {
-    'use_latest_revision': {
-        'schema': 'TestSchema'
-    },
-    'use_specified_revision': {
-        'schema': 'TestSchema',
+    'test_topic': {
+        'schema_name': 'TestSchema',
         'revision': 123
     },
     'topic_with_meta': {
-        'schema': 'TestMetaSchema'
+        'schema_name': 'TestMetaSchema'
     }
 }
 
@@ -284,13 +281,13 @@ class HttpRequestAttempted(RuntimeError):
     pass
 
 
-# We'll be replacing :func:`eventlogging.schemas.http_get_schema` with a
+# We'll be replacing :func:`eventlogging.schemas.url_get_schema` with a
 # mock object, so set aside an unpatched copy so we can clean up.
-orig_http_get_schema = eventlogging.schema.http_get_schema
+orig_url_get_schema = eventlogging.schema.url_get_schema
 
 
-def mock_http_get_schema(scid):
-    """Mock of :func:`eventlogging.schemas.http_get_schema`
+def mock_url_get_schema(scid):
+    """Mock of :func:`eventlogging.schemas.url_get_schema`
     Used to detect when :func:`eventlogging.schemas.get_schema`
     delegates to HTTP retrieval.
     """
@@ -306,7 +303,7 @@ def mock_http_get_schema(scid):
 def _get_event():
     """ Creates events on demand with unique ids"""
     for i in range(1, 100):
-        event = copy.deepcopy(_event)
+        event = Event(copy.deepcopy(_event))
         event['uuid'] = i
         yield event
 
@@ -316,22 +313,22 @@ class SchemaTestMixin(object):
     schema look-ups."""
 
     def setUp(self):
-        """Stub `http_get_schema` and pre-fill schema cache."""
+        """Stub `url_get_schema` and pre-fill schema cache."""
         super(SchemaTestMixin, self).setUp()
-        self.event = copy.deepcopy(_event)
-        self.event_with_meta = copy.deepcopy(_event_with_meta)
-        self.incorrectly_serialized_empty_event = copy.deepcopy(
-            _incorrectly_serialized_empty_event)
+        self.event = Event(copy.deepcopy(_event))
+        self.event_with_meta = Event(copy.deepcopy(_event_with_meta))
+        self.incorrectly_serialized_empty_event = Event(copy.deepcopy(
+            _incorrectly_serialized_empty_event))
         eventlogging.schema.schema_cache = copy.deepcopy(_schemas)
         eventlogging.topic.topic_config = copy.deepcopy(_topic_config)
-        eventlogging.schema.http_get_schema = mock_http_get_schema
+        eventlogging.schema.url_get_schema = mock_url_get_schema
         self.event_generator = _get_event()
 
     def tearDown(self):
-        """Clear schema cache and restore stubbed `http_get_schema`."""
+        """Clear schema cache and restore stubbed `url_get_schema`."""
         super(SchemaTestMixin, self).tearDown()
         eventlogging.schema.schema_cache.clear()
-        eventlogging.schema.http_get_schema = orig_http_get_schema
+        eventlogging.schema.url_get_schema = orig_url_get_schema
 
     def assertIsValid(self, event, msg=None):
         """Assert that capsule 'event' object validates."""
@@ -367,18 +364,18 @@ class HttpSchemaTestMixin(object):
     http_resp = ''
 
     def setUp(self):
-        """Replace `http_get` with stub."""
+        """Replace `url_get` with stub."""
         super(HttpSchemaTestMixin, self).setUp()
-        self.orig_http_get = eventlogging.schema.http_get
-        eventlogging.schema.http_get = self.http_get_stub
+        self.orig_url_get = eventlogging.schema.url_get
+        eventlogging.schema.url_get = self.url_get_stub
         eventlogging.schema.schema_cache.clear()
 
     def tearDown(self):
-        """Restore original `http_get`."""
-        eventlogging.schema.http_get = self.orig_http_get
+        """Restore original `url_get`."""
+        eventlogging.schema.url_get = self.orig_url_get
 
-    def http_get_stub(self, url):
-        """Test stub for `http_get`."""
+    def url_get_stub(self, url):
+        """Test stub for `url_get`."""
         return self.http_resp
 
 

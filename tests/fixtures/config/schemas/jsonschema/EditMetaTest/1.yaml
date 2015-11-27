@@ -9,12 +9,9 @@ properties:
     properties:
       topic:
         type: string
-      schema:
+      schema_uri:
         type: string
-        description: The name of this schema
-      revision:
-        type: integer
-        description: The revision of this schema
+        description: The URI locating the schema of this event
       uri:
         type: string
         format: uri
@@ -36,6 +33,7 @@ properties:
         description: the domain the event pertains to
     required:
       - topic
+      - schema_uri
       - uri
       - id
       - dt

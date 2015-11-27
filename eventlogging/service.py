@@ -20,15 +20,17 @@ import logging
 
 from . import ValidationError, SchemaError  # these are int __init__.py
 from .compat import json
+from .event import create_event_error, Event
 from .factory import apply_safe, get_writer
-from .schema import (
-    validate, get_schema, schema_name_from_event, id_from_event,
-    create_event_error
-)
+from .schema import validate
 from .topic import (
-    get_topic_config, scid_for_topic, schema_for_topic, topic_from_event,
-    TopicNotConfigured, TopicNotFound,
+    get_topic_config, latest_scid_for_topic, schema_allowed_in_topic,
+    schema_name_for_topic, TopicNotConfigured, TopicNotFound,
 )
+
+
+class SchemaNotAllowedInTopic(Exception):
+    pass
 
 
 class EventLoggingService(tornado.web.Application):
@@ -38,7 +40,6 @@ class EventLoggingService(tornado.web.Application):
     Routes:
 
       POST /v1/events
-      GET  /v1/topics/{topic}
       GET  /v1/topics
       GET  /v1/schemas/{schema_name}[/{schema_revision}]
 
@@ -61,14 +62,8 @@ class EventLoggingService(tornado.web.Application):
             # POST /v1/events
             (r"/v1/events", EventHandler),
 
-            # GET /v1/topics/{topic}
-            (r"/v1/topics/([\w\d\-_]+)", TopicHandler),
-
             # GET /v1/topics
             (r"/v1/topics", TopicConfigHandler),
-
-            # GET /v1/schemas/{schema_name}[/{schema_revision}]
-            (r"/v1/schemas/([\w\d\-_]+)(?:/(\d+))?", SchemaHandler),
         ]
 
         super(EventLoggingService, self).__init__(routes)
@@ -106,22 +101,6 @@ class EventLoggingService(tornado.web.Application):
                 self.writers[uri] = w
                 w.send(event)
 
-    def decode_json(self, s, callback=None):
-        """
-        Loads the string into an object.  If the top level
-        object is a dict, it will be wrapped in a list.
-        The result of this function should be a list of events.
-
-        :param s: json string
-        """
-        events = json.loads(s.decode('utf-8'))
-        if isinstance(events, dict):
-            events = [events]
-        if callback:
-            callback(events)
-        else:
-            return events
-
     def process_event(self, event):
         """
         Validate the event using the schema configured for it's topic.
@@ -130,24 +109,29 @@ class EventLoggingService(tornado.web.Application):
         Returns True on success, otherwise some Exception will be thrown.
 
         """
-        topic = topic_from_event(event)
-        schema_name, revision = scid_for_topic(topic)
+        topic = event.topic()
+        scid = event.scid()
 
-        # Set topic, schema, and revision on event metadata subobject.
-        if 'meta' in event:
-            event['meta']['schema'] = schema_name
-            event['meta']['revision'] = revision
-            # meta style events don't use encapsulate
-            encapsulate = False
-
-        # Else meta data is top level (EventCapsule style).
+        if not scid:
+            scid = latest_scid_for_topic(topic)
+            # Fill in scid / schema_uri for this even
+            # from the topic config
+            logging.debug(
+                '%s did not set scid/schema_uri. Setting to %s,%s '
+                'for topic %s' % (event, scid[0], scid[1], topic)
+            )
+            event.set_scid(scid)
         else:
-            event['schema'] = schema_name
-            event['revision'] = revision
-            # EventCapsule style meta data does use encapsulate
-            encapsulate = True
+            # Make sure the provided event scid is allowed in this topic.
+            if not schema_allowed_in_topic(scid[0], topic):
+                raise SchemaNotAllowedInTopic(
+                    'Events of schema %s are not allowed in topic %s. '
+                    'Expected schema %s' % (
+                        scid[0], topic,  schema_name_for_topic(topic)
+                    )
+                )
 
-        validate(event, encapsulate=encapsulate)
+        validate(event, encapsulate=event.should_encapsulate())
         # Send this processed event to all configured writers
         # This will block until each writer finishes writing
         # this event.
@@ -163,9 +147,6 @@ class EventLoggingService(tornado.web.Application):
 
         :param events: list of event dicts
         """
-        # This will add schema and revision to the event
-        # based on topic config.
-
         event_errors = []
         for event in events:
             error_message = None
@@ -177,21 +158,22 @@ class EventLoggingService(tornado.web.Application):
                 error_message = str(e)
 
             except TopicNotFound as e:
-                error_message = 'Could not get topic from event %s. %s' % (
-                    id_from_event(event), e
+                error_message = 'Could not get topic from %s. %s' % (
+                    event, e
                 )
+
+            except SchemaNotAllowedInTopic as e:
+                error_message = str(e)
 
             except SchemaError as e:
                 error_message = 'Could not find schema for provided topic ' \
-                    'in event %s. %s' % (id_from_event, e)
+                    'in %s. %s' % (event, e)
 
             except ValidationError as e:
-                error_message = 'Failed validating event %s of schema ' \
-                    '%s. %s' % (
-                        id_from_event(event),
-                        schema_name_from_event(event),
-                        e.message
-                    )
+                error_message = 'Failed validating %s. %s ' % (
+                    event,
+                    e.message
+                )
 
             finally:
                 # If we encountered an error while processing this event,
@@ -254,15 +236,20 @@ class EventHandler(tornado.web.RequestHandler):
         if self.request.headers['Content-Type'] == 'application/json':
             try:
                 if self.request.body:
-                    # decode the json string into a list
+
+                    # Load the json body into Event objects.
                     events = yield tornado.gen.Task(
-                        self.application.decode_json,
-                        self.request.body
+                        apply_safe, Event.factory, {'data': self.request.body}
                     )
-                    # process and validate events
+
+                    # If we were only given a single event in the json,
+                    # convert it to a list so the rest of the code just works.
+                    if isinstance(events, dict):
+                        events = [events]
+
+                    # Process and validate all events.
                     event_errors = yield tornado.gen.Task(
-                        self.application.handle_events,
-                        events
+                        self.application.handle_events, events
                     )
                     events_count = len(events)
                     event_errors_count = len(event_errors)
@@ -311,50 +298,6 @@ class EventHandler(tornado.web.RequestHandler):
         self.set_status(response_code, response_text)
         if response_body:
             self.write(response_body)
-
-
-class TopicHandler(tornado.web.RequestHandler):
-
-    @tornado.gen.coroutine
-    def get(self, topic):
-        try:
-            schema = yield tornado.gen.Task(
-                apply_safe, schema_for_topic, {'topic': topic}
-            )
-        except TopicNotConfigured as e:
-            self.set_status(404, str(e))
-        else:
-            self.set_status(200)
-            self.write(schema)
-
-
-class SchemaHandler(tornado.web.RequestHandler):
-
-    @tornado.gen.coroutine
-    def get(self, schema_name, revision):
-        """
-        Finds and returns schema for provided scid.
-        """
-        try:
-            if not revision:
-                revision = 0
-            else:
-                revision = int(revision)
-
-            scid = (schema_name, revision)
-
-            schema = yield tornado.gen.Task(
-                apply_safe, get_schema, {'scid': scid}
-            )
-        except SchemaError as e:
-            response_text = 'Schema %s,%s not found. %s' % (
-                schema_name, revision, e
-            )
-            logging.error(response_text)
-            self.set_status(404, response_text)
-        else:
-            self.set_status(200)
-            self.write(schema)
 
 
 class TopicConfigHandler(tornado.web.RequestHandler):

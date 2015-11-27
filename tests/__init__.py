@@ -8,10 +8,12 @@
 """
 # flake8: noqa
 
+from .test_event import *
 from .test_jrm import *
 from .test_parser import *
 from .test_schema import *
 from .test_handlers import *
 from .test_crypto import *
+from .test_topic import *
 from .test_utils import *
 from .test_service import *

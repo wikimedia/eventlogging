@@ -1,6 +1,6 @@
 mediawiki_Edit:
-    schema: Edit
+    schema_name: Edit
 
 mediawiki_EditMetaTest:
-    schema: EditMetaTest
+    schema_name: EditMetaTest
 

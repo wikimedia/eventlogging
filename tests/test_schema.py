@@ -14,7 +14,6 @@
 """
 from __future__ import unicode_literals
 
-import copy
 import unittest
 
 import eventlogging
@@ -28,19 +27,19 @@ from .fixtures import (
 
 
 class HttpSchemaTestCase(HttpSchemaTestMixin, unittest.TestCase):
-    """Tests for :func:`eventlogging.schema.http_get_schema`."""
+    """Tests for :func:`eventlogging.schema.url_get_schema`."""
 
     def test_valid_resp(self):
         """Test handling of HTTP response containing valid schema."""
         self.http_resp = '{"properties":{"value":{"type":"number"}}}'
-        schema = eventlogging.schema.http_get_schema(TEST_SCHEMA_SCID)
+        schema = eventlogging.schema.url_get_schema(TEST_SCHEMA_SCID)
         self.assertEqual(schema, {'properties': {'value': {'type': 'number'}}})
 
     def test_invalid_resp(self):
         """Test handling of HTTP response not containing valid schema."""
         self.http_resp = '"foo"'
         with self.assertRaises(eventlogging.SchemaError):
-            eventlogging.schema.http_get_schema(TEST_SCHEMA_SCID)
+            eventlogging.schema.url_get_schema(TEST_SCHEMA_SCID)
 
     def test_caching(self):
         """Valid HTTP responses containing JSON Schema are cached."""
@@ -54,32 +53,36 @@ class HttpSchemaTestCase(HttpSchemaTestMixin, unittest.TestCase):
 
 
 class FileSchemaTestCase(unittest.TestCase):
-    def test_scid_from_filename(self):
+    def test_scid_from_uri(self):
         """Tests that an scid can be extracted from filenames."""
         self.assertEqual(
-            eventlogging.schema.scid_from_filename('FakeSchema.123.json'),
+            eventlogging.schema.scid_from_uri('FakeSchema/123.json'),
             ('FakeSchema', 123)
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_filename('FakeSchema.123.yaml'),
+            eventlogging.schema.scid_from_uri('FakeSchema/123.yaml'),
             ('FakeSchema', 123)
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_filename('FakeSchema.json'),
-            ('FakeSchema', 0)
-        )
-        self.assertEqual(
-            eventlogging.schema.scid_from_filename('FakeSchema.yaml'),
-            ('FakeSchema', 0)
-        )
-        self.assertEqual(
-            eventlogging.schema.scid_from_filename(
-                '/whatever/path/to/FakeSchema.123.yaml'
+            eventlogging.schema.scid_from_uri(
+                '/whatever/path/to/FakeSchema/123.yaml'
             ),
             ('FakeSchema', 123)
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_filename('12345 not a schema file'),
+            eventlogging.schema.scid_from_uri(
+                'file:///whatever/path/to/FakeSchema/123.yaml'
+            ),
+            ('FakeSchema', 123)
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri(
+                'http:///example.org/whatever/path/to/FakeSchema/123.yaml'
+            ),
+            ('FakeSchema', 123)
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('12345 not a schema file'),
             None
         )
 
@@ -163,150 +166,6 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
         """An empty event with no mandatory properties should validate"""
         self.assertIsValid(self.incorrectly_serialized_empty_event)
 
-    def test_create_event_error_unparsed(self):
-        """
-        create_event_error() should create a valid EventError
-        object without schema or revision set.
-        """
-
-        invalid_raw_event = "Duh this won't validate against any schema."
-        error_message = "This is just a test."
-        error_code = "processor"
-        event_error = eventlogging.create_event_error(
-            invalid_raw_event,
-            error_message,
-            error_code
-        )
-        # Test that this event validates against the EventError schema.
-        self.assertIsValid(event_error)
-        self.assertEqual(
-            event_error['schema'],
-            eventlogging.schema.ERROR_SCID[0]
-        )
-        self.assertEqual(
-            event_error['revision'],
-            eventlogging.schema.ERROR_SCID[1]
-        )
-        self.assertEqual(
-            event_error['event']['rawEvent'],
-            invalid_raw_event
-        )
-        self.assertEqual(
-            event_error['event']['message'],
-            error_message
-        )
-        # assert that schema and revision are the defaults, since there's
-        # there is no parsed_event and these are not even present in this
-        # raw_event.
-        self.assertEqual(
-            event_error['event']['schema'],
-            'unknown'
-        )
-        self.assertEqual(
-            event_error['event']['revision'],
-            -1
-        )
-
-    def test_create_event_error_parsed(self):
-        """
-        create_event_error() should create a valid EventError
-        object with schema and revision set.
-        """
-
-        invalid_raw_event = "Duh this won't validate against any schema."
-        error_message = "This is just a test."
-        error_code = "processor"
-        parsed_event = {
-            'schema': 'Nonya',
-            'revision': 12345
-        }
-
-        event_error = eventlogging.create_event_error(
-            invalid_raw_event,
-            error_message,
-            error_code,
-            parsed_event
-        )
-        # Test that this event validates against the EventError schema.
-        self.assertIsValid(event_error)
-        self.assertEqual(
-            event_error['schema'],
-            eventlogging.schema.ERROR_SCID[0]
-        )
-        self.assertEqual(
-            event_error['revision'],
-            eventlogging.schema.ERROR_SCID[1]
-        )
-        self.assertEqual(
-            event_error['event']['rawEvent'],
-            invalid_raw_event
-        )
-        self.assertEqual(
-            event_error['event']['message'],
-            error_message
-        )
-        # assert that schema and revision the same as in parsed_event
-        self.assertEqual(
-            event_error['event']['schema'],
-            'Nonya'
-        )
-        self.assertEqual(
-            event_error['event']['revision'],
-            12345
-        )
-
-    def test_create_event_error_raw_schema_and_revision(self):
-        """
-        create_event_error() should create a valid
-        EventError object with schema and revision set, extracted
-        via a regex out of the raw_event.
-        """
-
-        invalid_raw_event = '?%7B%22event%22%3A%7B%22mobileMode%22%3A' \
-            '%22stable%22%2C%22name%22%3A%22home%22%2C%22destination%22%3A' \
-            '%22%2Fwiki%2FPagina_principale%22%7D%2C%22revision%22%3A' \
-            '11568715%2C%22schema%22%3A' \
-            '%22MobileWebMainMenuClickTracking%22%2C' \
-            '%22webHost%22%3A%12345terfdit.m.wikipedia.org%22%2C%22wiki%22' \
-            '%3A%22itwiki%22%7D;	cp3013.esams.wmnet	4724275	' \
-            '2015-09-21T21:55:27	1.2.3.4	"Mozilla"'
-
-        error_message = "This is just a test."
-        error_code = "processor"
-
-        event_error = eventlogging.create_event_error(
-            invalid_raw_event,
-            error_message,
-            error_code,
-        )
-        # Test that this event validates against the EventError schema.
-        self.assertIsValid(event_error)
-        self.assertEqual(
-            event_error['schema'],
-            eventlogging.schema.ERROR_SCID[0]
-        )
-        self.assertEqual(
-            event_error['revision'],
-            eventlogging.schema.ERROR_SCID[1]
-        )
-        self.assertEqual(
-            event_error['event']['rawEvent'],
-            invalid_raw_event
-        )
-        self.assertEqual(
-            event_error['event']['message'],
-            error_message
-        )
-        # assert that schema and revision the same as in the invalid raw event
-        self.assertEqual(
-            event_error['event']['schema'],
-            'MobileWebMainMenuClickTracking'
-        )
-        self.assertEqual(
-            event_error['event']['revision'],
-            11568715
-        )
-
     def test_init_schema_cache(self):
         """
         Test that non file based schemas are removed from schema_cache
@@ -318,28 +177,6 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
         eventlogging.schema.init_schema_cache()
         self.assertFalse(
             TEST_SCHEMA_SCID[0] in eventlogging.schema.schema_cache
-        )
-
-    def test_get_latest_cached_schema(self):
-        """
-        Test that the latest schema is returned from the schema cache.
-        """
-        self.assertEqual(
-            eventlogging.schema.get_latest_cached_schema(TEST_SCHEMA_SCID[0]),
-            eventlogging.schema.schema_cache[TEST_SCHEMA_SCID[0]][
-                TEST_SCHEMA_SCID[1]
-            ]
-        )
-        # insert a dummy schema with a large revision into the cache.
-        eventlogging.schema.schema_cache[TEST_SCHEMA_SCID[0]][99999] = 'dummy'
-        self.assertEqual(
-            eventlogging.schema.get_latest_cached_schema(TEST_SCHEMA_SCID[0]),
-            'dummy'
-        )
-        # nothing cached by this name
-        self.assertEqual(
-            eventlogging.schema.get_latest_cached_schema('not present'),
-            None
         )
 
     def test_cache_schema(self):
@@ -355,136 +192,61 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
             schema
         )
 
-
-class MetaTestCase(SchemaTestMixin, unittest.TestCase):
-    def setUp(self):
-        super(MetaTestCase, self).setUp()
-
-    def test_meta_from_event(self):
-
-        # EventCapsule fields only
-        event_capsule = copy.deepcopy(self.event)
-        del event_capsule['event']
-
-        # Test that the meta object returned from an encapsulated event
-        # is the EventCapsule fields only.
+    def test_get_latest_schema_revision(self):
+        """
+        Test that get_latest_schema_revision() always returns the
+        max schema revision for a schema, or None if no schema exists.
+        """
         self.assertEqual(
-            eventlogging.schema.meta_from_event(self.event),
-            event_capsule
-        )
-
-        # Test that the meta object returned from a meta subobject
-        # style event is just the meta object.
-        self.assertEqual(
-            eventlogging.schema.meta_from_event(self.event_with_meta),
-            self.event_with_meta['meta']
-        )
-
-    def test_get_from_meta(self):
-        self.assertEqual(
-            eventlogging.schema.get_from_meta('webHost', self.event),
-            'en.m.wikipedia.org'
-        )
-        self.assertEqual(
-            eventlogging.schema.get_from_meta(
-                'domain', self.event_with_meta
-            ),
-            'en.m.wikipedia.org'
-        )
-        self.assertEqual(
-            eventlogging.schema.get_from_meta(
-                'not a key', self.event_with_meta
-            ),
-            None
-        )
-
-    def test_id_from_event(self):
-        """Test that id/uuid can be extracted from event meta"""
-        self.assertEqual(
-            eventlogging.schema.id_from_event(self.event),
-            'babb66f34a0a5de3be0c6513088be33e'
-        )
-        self.assertEqual(
-            eventlogging.schema.id_from_event(self.event_with_meta),
-            '12345678-1234-5678-1234-567812345678'
-        )
-
-    def test_schema_name_from_event(self):
-        """Test that schema name can be extracted from event meta"""
-        self.assertEqual(
-            eventlogging.schema.schema_name_from_event(self.event),
-            'TestSchema'
-        )
-        self.assertEqual(
-            eventlogging.schema.schema_name_from_event(
-                self.event_with_meta
-            ),
-            'TestMetaSchema'
-        )
-
-    def test_schema_revision_from_event(self):
-        """Test that schema revision can be extracted from event meta"""
-        self.assertEqual(
-            eventlogging.schema.schema_revision_from_event(self.event),
+            eventlogging.schema.get_latest_schema_revision('TestSchema'),
             123
         )
+        scid = ('TestSchema', 999999)
+        schema = 'dummy'
+        # cache a new dummy schema larger than the current TestSchema revision
+        eventlogging.schema.cache_schema(scid, schema)
         self.assertEqual(
-            eventlogging.schema.schema_revision_from_event(
-                self.event_with_meta
-            ),
-            1
+            eventlogging.schema.get_latest_schema_revision('TestSchema'),
+            scid[1]
         )
-
-    def test_scid_from_event(self):
-        """Test that scid can be extracted from an event meta"""
+        # this schema name doesn't exist, so should return none.
         self.assertEqual(
-            eventlogging.schema.scid_from_event(self.event),
-            ('TestSchema', 123)
-        )
-        self.assertEqual(
-            eventlogging.schema.scid_from_event(
-                self.event_with_meta
-            ),
-            ('TestMetaSchema', 1)
-        )
-
-    def test_schema_from_event(self):
-        """Test that schema can be extracted from an event meta"""
-        self.assertEqual(
-            eventlogging.schema.schema_from_event(self.event),
-            eventlogging.schema.schema_cache['TestSchema'][123]
-        )
-        self.assertEqual(
-            eventlogging.schema.schema_from_event(
-                self.event_with_meta
-            ),
-            eventlogging.schema.schema_cache['TestMetaSchema'][1]
-        )
-        # test with use latest revision when no revision is in event
-        del self.event['revision']
-        self.assertEqual(
-            eventlogging.schema.schema_from_event(
-                self.event,
-                use_latest_revision=True
-            ),
-            eventlogging.schema.schema_cache['TestSchema'][123]
-        )
-
-    def test_datetime_from_event(self):
-        """Test that a datetime can be extracted from event meta"""
-        self.assertEqual(
-            eventlogging.schema.datetime_from_event(self.event),
-            eventlogging.utils.datetime_from_timestamp(self.event['timestamp'])
-        )
-        self.assertEqual(
-            eventlogging.schema.datetime_from_event(self.event_with_meta),
-            eventlogging.utils.datetime_from_timestamp(
-                self.event_with_meta['meta']['dt']
-            )
-        )
-        # No datetime to parse in event should return None by default
-        del self.event_with_meta['meta']['dt']
-        self.assertEqual(
-            eventlogging.schema.datetime_from_event(self.event_with_meta),
+            eventlogging.schema.get_latest_schema_revision('nopers'),
             None
+        )
+
+    def test_url_from_scid(self):
+        f = 'https://meta.wikimedia.org/w/api.php?action=jsonschema' \
+            '&title=%s&revid=%s&formatversion=2'
+        scid = ('TestSchema', 123)
+        self.assertEqual(
+            eventlogging.schema.url_from_scid(scid),
+            f % (scid)
+        )
+
+    def test_scid_from_uri(self):
+        scid = ('TestSchema', 123)
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('TestSchema/123'),
+            scid
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('TestSchema/123.json'),
+            scid
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('TestSchema/123.yaml'),
+            scid
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('TestSchema/123.yml'),
+            scid
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('http://d.org/TestSchema/123'),
+            scid
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('file:///a/b/TestSchema/123'),
+            scid
         )
