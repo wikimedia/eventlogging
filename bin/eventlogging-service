@@ -27,7 +27,6 @@ ap.add_argument(
     help='Port on which to listen for requests.',
 )
 
-
 ap.add_argument(
     '--schemas-path',
     default=os.path.join(
@@ -39,11 +38,16 @@ ap.add_argument(
     help='Path to local schema repository',
 )
 
-
 ap.add_argument(
     '--topic-config',
     default='./config/topics.yaml',
     help='Topic -> schema config file',
+)
+
+ap.add_argument(
+    '--log-config',
+    default=None,
+    help='Python logging config file',
 )
 
 ap.add_argument(
@@ -57,8 +61,9 @@ ap.add_argument('output', nargs='+', help='URIs of output streams.')
 
 
 if __name__ == "__main__":
-    setup_logging()
     args = ap.parse_args()
+
+    setup_logging(config_file=args.log_config)
 
     # Initialize topic_config and schema_cache with schemas from local files.
     init_topic_config(args.topic_config)

@@ -252,9 +252,9 @@ def datetime_from_timestamp(t):
     return dt
 
 
-def setup_logging(logfile=None):
-    if logfile:
-        fileConfig(logfile)
+def setup_logging(config_file=None):
+    if config_file:
+        fileConfig(config_file)
     else:
         eventlogging_log_level = getattr(
             logging, os.environ.get('LOG_LEVEL', 'INFO')
