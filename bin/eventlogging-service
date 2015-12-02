@@ -57,6 +57,13 @@ ap.add_argument(
     'processes as there are cores.  Default 1.',
 )
 
+ap.add_argument(
+    '--error-output',
+    default=None,
+    help='URI of output stream for errored events. '
+    'Errored events are written using the EventError schema.'
+)
+
 ap.add_argument('output', nargs='+', help='URIs of output streams.')
 
 
@@ -87,7 +94,8 @@ if __name__ == "__main__":
     )
 
     service = EventLoggingService(
-        args.output
+        args.output,
+        args.error_output
     )
 
     # Start listening for requests.

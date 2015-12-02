@@ -13,7 +13,7 @@
 
 """
 import sys
-reload(sys)
+reload(sys)  # noqa
 sys.setdefaultencoding('utf-8')
 
 import argparse
@@ -167,4 +167,4 @@ def monitor_pubs(endpoints):
 
 
 if __name__ == '__main__':
-    print monitor_pubs(iter_pubs('/etc/eventlogging.d/processors'))
+    print(monitor_pubs(iter_pubs('/etc/eventlogging.d/processors')))
