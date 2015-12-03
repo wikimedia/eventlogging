@@ -15,6 +15,7 @@ import itertools
 import logging
 import _mysql
 import sqlalchemy
+import time
 
 from .compat import items
 from .schema import get_schema
@@ -247,13 +248,20 @@ def store_sql_events(meta, events_batch, replace=False,
         for _, grouper in itertools.groupby(prepared_events, insert_sort_key):
             events = list(grouper)
             table = get_table(meta, scid)
+
+            insert_started_at = time.time()
             insert(table, events, replace)
+            insert_time_taken = time.time() - insert_started_at
+
             # The insert operation is all or nothing - either all events have
             # been inserted successfully (sqlalchemy wraps the insertion in a
             # transaction), or an exception is thrown and it's not caught
             # anywhere. This means that if the following line is reached,
             # len(events) events have been inserted, so we can log it.
-            logger.info('Data inserted %d', len(events))
+            logger.info(
+                'Inserted %d %s_%s events in %f seconds',
+                len(events), scid[0], scid[1], insert_time_taken
+            )
             if on_insert_callback:
                 on_insert_callback(len(events))
 

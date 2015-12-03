@@ -292,7 +292,10 @@ def sql_writer(uri, replace=False, statsd_host=''):
             # Check if the schema queue is too long or too old
             if (len(scid_events) >= batch_size or
                     time.time() - first_timestamp >= batch_time):
-                logger.info('%s_%s queue is large or old, flushing', *scid)
+                logger.info(
+                    'Queueing %d %s_%s events for insertion',
+                    len(scid_events), scid[0], scid[1]
+                )
                 events_batch.append((scid, scid_events))
                 del events[scid]
     except GeneratorExit:
