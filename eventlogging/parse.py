@@ -43,6 +43,7 @@ import uuid
 
 from .compat import json, unquote_plus, uuid5
 from .crypto import keyhasher, rotating_key
+from .event import Event
 
 __all__ = (
     'LogParser', 'ncsa_to_unix',
@@ -166,7 +167,7 @@ class LogParser(object):
         event = {k: f(match.group(k)) for f, k in zip(self.casters, keys)}
         event.update(event.pop('capsule'))
         event['uuid'] = capsule_uuid(event)
-        return event
+        return Event(event)
 
     def __repr__(self):
         return '<LogParser(\'%s\')>' % self.format
