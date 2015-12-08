@@ -188,7 +188,7 @@ def kafka_writer(
                 if blacklist_pattern.match(schema_name):
                     logging.debug(
                         '%s is blacklisted, not writing event %s.' %
-                        schema_name
+                        (schema_name, event)
                     )
                     continue
 
