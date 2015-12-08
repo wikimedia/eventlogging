@@ -42,7 +42,7 @@ NO_DB_PROPERTIES = (
 ENGINE_TABLE_OPTIONS = {
     'mysql': {
         'mysql_charset': 'utf8',
-        'mysql_engine': 'InnoDB'
+        'mysql_engine': 'TokuDB'
     }
 }
 
