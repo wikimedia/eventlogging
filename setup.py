@@ -54,7 +54,7 @@ setup(
     zip_safe=False,
     test_suite='eventlogging.tests',
     install_requires=(
-        "python-dateutil>=2.2",
+        "python-dateutil>=1.5",
         "jsonschema>=0.7",
         "kafka-python>=0.9.4",
         # To run eventlogging with python3 in debian, you'll need a at
