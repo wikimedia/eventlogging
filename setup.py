@@ -64,7 +64,7 @@ setup(
         # and we no longer use sudo python setup.py install to install.
         # "mysqlclient>=1.3.7",
         "pygments>=1.5",
-        "pykafka==1.1.1",
+        "pykafka==2.1.0",
         # python-etcd requires python-openssl >= 0.14, which is not
         # available in Trusty.  Our python-etcd package does work with
         # python-openssl 0.13-2 which is available via .deb.

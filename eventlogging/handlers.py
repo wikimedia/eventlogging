@@ -509,7 +509,7 @@ def kafka_reader(
     }
 
     kafka_client = PyKafkaClient(hosts=brokers)
-    kafka_topic = kafka_client.topics[topic]
+    kafka_topic = kafka_client.topics[topic.encode('ascii', 'ignore')]
 
     consumer = kafka_topic.get_balanced_consumer(
         consumer_group=identity.encode('ascii', 'ignore'),
