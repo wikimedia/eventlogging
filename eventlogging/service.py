@@ -17,6 +17,7 @@ import tornado.httpserver
 # For UnicodeError
 from _codecs import *  # noqa
 import logging
+import os
 
 from . import ValidationError, SchemaError  # these are int __init__.py
 from .compat import json
@@ -27,6 +28,15 @@ from .topic import (
     get_topic_config, latest_scid_for_topic, schema_allowed_in_topic,
     schema_name_for_topic, TopicNotConfigured, TopicNotFound,
 )
+
+# These must be checked before we import sprockets because
+# sprockets also sets the envrionment variables if they are not set.
+# Set the default sprockets.mixins.statsd prefix.
+os.environ.setdefault('STATSD_PREFIX', 'eventlogging.service')
+# Don't report per host stats by default.
+os.environ.setdefault('STATSD_USE_HOSTNAME', 'False')
+
+from sprockets.mixins import statsd
 
 
 class SchemaNotAllowedInTopic(Exception):
@@ -209,7 +219,10 @@ class EventLoggingService(tornado.web.Application):
         tornado.ioloop.IOLoop.current().start()
 
 
-class EventHandler(tornado.web.RequestHandler):
+class EventHandler(
+    statsd.RequestMetricsMixin,
+    tornado.web.RequestHandler
+):
 
     @tornado.gen.coroutine
     def post(self):
@@ -300,7 +313,10 @@ class EventHandler(tornado.web.RequestHandler):
             self.write(response_body)
 
 
-class TopicConfigHandler(tornado.web.RequestHandler):
+class TopicConfigHandler(
+    statsd.RequestMetricsMixin,
+    tornado.web.RequestHandler
+):
 
     def get(self):
         self.set_status(200)

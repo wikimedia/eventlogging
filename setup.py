@@ -78,5 +78,6 @@ setup(
         # NOTE:  This is commented out until we no longer run on Jessie
         # and we no longer use sudo python setup.py install to install.
         # "tornado>=4.0",
+        # "sprockets.mixins.statsd>=1.3.1",
     )
 )
