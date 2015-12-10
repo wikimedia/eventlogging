@@ -242,7 +242,7 @@ def store_sql_events(meta, events_batch, replace=False,
         insert = _insert_sequential
 
     while len(events_batch) > 0:
-        scid, scid_events = events_batch.pop()
+        scid, scid_events = events_batch.popleft()
         prepared_events = [prepare(e) for e in scid_events]
         # TODO: Avoid breaking the inserts down by same set of fields,
         # instead force a default NULL, 0 or '' value for optional fields.
