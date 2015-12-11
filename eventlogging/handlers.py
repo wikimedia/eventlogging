@@ -304,10 +304,10 @@ def sql_writer(uri, replace=False, statsd_host=''):
             # that the connection is alive, and reconnect if necessary.
             dbapi_connection.ping(True)
     try:
-        batch_size = 3000
+        batch_size = 5000
         batch_time = 300  # in seconds
         # Max number of batches pending insertion.
-        queue_size = 100
+        queue_size = 1000
         sleep_seconds = 5
         # Link the main thread to the worker thread so we
         # don't keep filling the queue if the worker died.
