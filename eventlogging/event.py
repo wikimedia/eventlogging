@@ -240,7 +240,9 @@ def create_event_error(
     # If we've got a parsed event, then we can just get the schema
     # and revision out of the object.
     if parsed_event:
-        errored_schema, errored_revision = parsed_event.scid()
+        scid = parsed_event.scid()
+        if scid:
+            errored_schema, errored_revision = scid
 
     # otherwise attempt to get them out of the raw_event with a regex
     else:
