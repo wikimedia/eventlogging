@@ -1,6 +1,11 @@
+
+# EventLogging
+
+EventLogging is a set of abstractions for dealing with streams of structured
+and schema-ed data.  It was originally developed to collect metrics from MediaWiki using the [EventLogging Extension](https://www.mediawiki.org/wiki/Extension:EventLogging).  It has evolved beyond its original use case, and can now be used for building flows of stream data.
+
 **Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
 
-- [EventLogging](#eventlogging)
 - [Overview](#overview)
 - [Installation](#installation)
 - [EventLogging URIs](#eventlogging-uris)
@@ -19,11 +24,6 @@
 - [Consumer Handler Plugins](#consumer-handler-plugins)
 - [Examples](#examples)
 - [Logging](#logging)
-
-# EventLogging
-
-EventLogging is a set of abstractions for dealing with streams of structured
-and schema-ed data.  It was originally developed to collect metrics from MediaWiki using the [EventLogging Extension](https://www.mediawiki.org/wiki/Extension:EventLogging).  It has evolved beyond its original use case, and can now be used for building flows of stream data.
 
 # Overview
 
