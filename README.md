@@ -1,3 +1,25 @@
+**Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
+
+- [EventLogging](#eventlogging)
+- [Overview](#overview)
+- [Installation](#installation)
+- [EventLogging URIs](#eventlogging-uris)
+- [Event Structure](#event-structure)
+    - [Schemas](#schemas)
+        - [Schema Repositories](#schema-repositories)
+        - [Meta](#meta)
+            - [EventCapsule (mediawiki extension)](#eventcapsule-mediawiki-extension)
+            - [Event Meta](#event-meta)
+- [Components](#components)
+    - [eventlogging-consumer](#eventlogging-consumer)
+    - [eventlogging-processor](#eventlogging-processor)
+    - [eventlogging-forwarder](#eventlogging-forwarder)
+    - [eventlogging-multiplexer](#eventlogging-multiplexer)
+    - [eventlogging-service](#eventlogging-service)
+- [Consumer Handler Plugins](#consumer-handler-plugins)
+- [Examples](#examples)
+- [Logging](#logging)
+
 # EventLogging
 
 EventLogging is a set of abstractions for dealing with streams of structured
