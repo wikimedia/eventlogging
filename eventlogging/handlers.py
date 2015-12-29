@@ -318,7 +318,7 @@ def sql_writer(uri, replace=False, statsd_host=''):
                 time.sleep(sleep_seconds)
             event = (yield)
             # Break the event stream by schema (and revision)
-            scid = (event['schema'], event['revision'])
+            scid = event.scid()
             scid_events, first_timestamp = events[scid]
             scid_events.append(event)
             if stats:
