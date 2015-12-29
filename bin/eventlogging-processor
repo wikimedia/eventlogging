@@ -3,7 +3,7 @@
 """
   eventlogging-processor
   -----------------------------
-  Transform raw log stream to JSON event stream
+  Transforms raw log stream to JSON event stream.
 
   usage: eventlogging-processor [-h] [--sid SID] format \
               input output [output ...]

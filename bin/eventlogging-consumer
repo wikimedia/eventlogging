@@ -3,8 +3,8 @@
 """
   eventlogging-consumer
   ---------------------
-  Consumes an event stream and writes it to a data store. Input stream and
-  target data store are specified using URIs.
+  Consumes an event stream and writes it to a configured output. Input stream
+  and target data store are specified using URIs.
 
   usage: eventlogging-consumer [-h] input-uri output-uri
 

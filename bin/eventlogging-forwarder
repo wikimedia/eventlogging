@@ -3,9 +3,10 @@
 """
   eventlogging-forwarder
   ----------------------
-  Arbitrary input -> ZeroMQ socket forwarding. Reads line-oriented input from
-  an input stream and writes it to a ZeroMQ TCP PUB socket bound to the same
-  port number.
+  Arbitrary input -> outputs forwarding. Reads line-oriented input from
+  an input stream and writes to configured outputs.  No JSON parsing or
+  JSON schema validation is done.  This can also optionally prepend
+  sequence numbers to each line.
 
   usage: eventlogging-forwarder [-h] input output [output ...]
 
@@ -18,6 +19,7 @@
 
   optional arguments:
     -h, --help  show this help message and exit
+    --count     Prepend an autoincrementing ID to each message.
 
   :copyright: (c) 2012 by Ori Livneh <ori@wikimedia.org>
   :license: GNU General Public Licence 2.0 or later
@@ -35,7 +37,7 @@ import logging
 from eventlogging import setup_logging, get_reader, get_writer, uri_force_raw
 
 
-ap = argparse.ArgumentParser(description='UDP => Writers Device',
+ap = argparse.ArgumentParser(description='Raw input -> outputs forwarder.',
                              fromfile_prefix_chars='@')
 # Forward raw events.  This keeps the reader
 # attempting to parse the input as json.

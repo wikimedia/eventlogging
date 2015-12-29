@@ -1,16 +1,12 @@
 #!/usr/bin/env python -OO
 # -*- coding: utf-8 -*-
 """
-  eventlogging-zmq-mux
+  eventlogging-multiplexer
   --------------------
-  Multiplexes ZMQ_PUB sockets.
-
-  Reads messages from one or more ZMQ_SUBs and publishes a muxed stream
+  Reads messages from one or more inputs and publish a muxed output stream
   containing all messages from all inputs.
 
-  usage: eventlogging-zmq-mux [-h] [--sid SID] output input [input ...]
-
-  Multiplex ZMQ_PUB sockets
+  usage: eventlogging-multiplexer [-h] [--sid SID] output input [input ...]
 
   positional arguments:
     output      URI of output stream
