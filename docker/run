@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Builds and runs an EventLogging container
+
+if [ "${1}" == '--help' ]; then
+    echo "
+Usage: docker/run [<component>] ...
+
+Builds and run an EventLogging docker container.
+
+If <component> is not given, then a shell in the base container
+with the codebase checkout out from upstream master at
+/usr/src/eventlogging will be started.
+
+If <component> is dev, then a shell in the dev container with the
+local codebase mounted at /srv/eventlogging will be started.
+
+Otherwise, one of the docker subdirectories will be started.
+
+Anything after <component> will be passed as the arguments
+to docker run, so you may use CMD overrides to pass
+additional arguments to ENTRYPOINTS.  E.g.
+docker/run service file:///tmp/out.log
+"
+    exit 0
+fi
+
+
+component="${1}"
+docker_dir=$(pwd)/docker/${component}
+image_name="wikimedia/eventlogging"
+docker_args=''
+
+# make sure the base container is built
+docker images wikimedia/eventlogging | grep -q 'wikimedia/eventlogging'
+if [ $? -ne 0 ]; then
+    echo "Building base EventLogging image..."
+    echo docker build --tag 'wikimedia/eventlogging' $(pwd)/docker
+    docker build --tag 'wikimedia/eventlogging' $(pwd)/docker
+fi
+
+if [ "${component}" != '' ]; then
+    image_name="wikimedia/eventlogging-${component}"
+    shift
+else
+    shift
+    shift;
+fi
+
+# component special cases
+if [ "${component}" == 'dev' ]; then
+    # mount local codebase if
+    docker_args="-v $(pwd):/srv/eventlogging"
+elif [ "${component}" == 'service' ]; then
+    docker_args='-p 8085:8085'
+fi
+
+# Build and run the image
+echo docker build --tag "${image_name}" "${docker_dir}"
+docker build --tag "${image_name}" "${docker_dir}"
+echo docker run -i -t ${docker_args} "${image_name}" $@
+docker run -i -t ${docker_args} "${image_name}" $@
