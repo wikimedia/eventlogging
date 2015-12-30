@@ -17,7 +17,10 @@ import eventlogging
 import sqlalchemy
 import sqlalchemy.sql
 
-from .fixtures import (DatabaseTestMixin, TEST_SCHEMA_SCID)
+from .fixtures import (
+    DatabaseTestMixin, TEST_SCHEMA_SCID, TEST_META_SCHEMA_SCID
+)
+from eventlogging.jrm import TABLE_NAME_FORMAT
 
 
 class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
@@ -29,14 +32,31 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         table generated."""
         events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
         eventlogging.store_sql_events(self.meta, events_batch)
-        self.assertIn('TestSchema_123', self.meta.tables)
-        table = self.meta.tables['TestSchema_123']
+        table_name = TABLE_NAME_FORMAT % TEST_SCHEMA_SCID
+        self.assertIn(table_name, self.meta.tables)
+        table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
         s = sqlalchemy.sql.select([table])
         results = self.engine.execute(s)
         row = results.fetchone()
         # see columns with print table.c
         self.assertEqual(row['clientIp'], self.event['clientIp'])
+
+    def test_lazy_table_creation_with_meta(self):
+        """If an attempt is made to store an event with meta (not encapsulated)
+        for which no table exists, the schema is automatically retrieved and a
+        suitable table generated."""
+        events_batch = deque([(TEST_META_SCHEMA_SCID, [self.event_with_meta])])
+        eventlogging.store_sql_events(self.meta, events_batch)
+        table_name = TABLE_NAME_FORMAT % TEST_META_SCHEMA_SCID
+        self.assertIn(table_name, self.meta.tables)
+        table = self.meta.tables[table_name]
+        # is the table on the db  and does it have the right data?
+        s = sqlalchemy.sql.select([table])
+        results = self.engine.execute(s)
+        row = results.fetchone()
+        # see columns with print table.c
+        self.assertEqual(row['meta_id'], self.event_with_meta.id())
 
     def test_column_names(self):
         """Generated tables contain columns for each relevant field."""

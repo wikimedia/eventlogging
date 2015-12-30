@@ -14,6 +14,7 @@ import datetime
 import itertools
 import logging
 import _mysql
+import os
 import sqlalchemy
 import time
 
@@ -42,7 +43,9 @@ NO_DB_PROPERTIES = (
 ENGINE_TABLE_OPTIONS = {
     'mysql': {
         'mysql_charset': 'utf8',
-        'mysql_engine': 'TokuDB'
+        'mysql_engine': os.environ.setdefault(
+            'EVENTLOGGING_MYSQL_ENGINE', 'TokuDB'
+        )
     }
 }
 
@@ -121,7 +124,7 @@ def typecast(property):
     return sqlalchemy.Column(**options)
 
 
-def get_table(meta, scid):
+def get_table(meta, scid, should_encapsulate=True):
     """Acquire a :class:`sqlalchemy.schema.Table` object for a JSON
     Schema specified by `scid`."""
     #  +---------------------------------+
@@ -156,13 +159,13 @@ def get_table(meta, scid):
     try:
         return meta.tables[TABLE_NAME_FORMAT % scid]
     except KeyError:
-        return declare_table(meta, scid)
+        return declare_table(meta, scid, should_encapsulate)
 
 
-def declare_table(meta, scid):
+def declare_table(meta, scid, should_encapsulate=True):
     """Map a JSON schema to a SQL table. If the table does not exist in
     the database, issue ``CREATE TABLE`` statement."""
-    schema = get_schema(scid, encapsulate=True)
+    schema = get_schema(scid, encapsulate=should_encapsulate)
 
     columns = schema_mapper(schema)
 
@@ -244,12 +247,19 @@ def store_sql_events(meta, events_batch, replace=False,
     while len(events_batch) > 0:
         scid, scid_events = events_batch.popleft()
         prepared_events = [prepare(e) for e in scid_events]
+
+        # Each event here should be the same schema, so we can
+        # check if the first event should be encapsulated
+        # and use that when constructing the create table
+        # statement in declare_table.
+        should_encapsulate = scid_events[0].should_encapsulate()
+
         # TODO: Avoid breaking the inserts down by same set of fields,
         # instead force a default NULL, 0 or '' value for optional fields.
         prepared_events.sort(key=insert_sort_key)
         for _, grouper in itertools.groupby(prepared_events, insert_sort_key):
             events = list(grouper)
-            table = get_table(meta, scid)
+            table = get_table(meta, scid, should_encapsulate)
 
             insert_started_at = time.time()
             insert(table, events, replace)

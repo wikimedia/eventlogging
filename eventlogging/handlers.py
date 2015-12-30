@@ -268,13 +268,31 @@ def insert_stats(stats, inserted_count):
 
 
 @writes('mysql', 'sqlite')
-def sql_writer(uri, replace=False, statsd_host=''):
-    """Writes to an RDBMS, creating tables for SCIDs and rows for events."""
-    import sqlalchemy
+def sql_writer(
+    uri,
+    replace=False,
+    statsd_host='',
+    batch_size=3000,
+    batch_time=300,  # in seconds
+    queue_size=100  # Max number of batches pending insertion.
+):
+    """
+    Writes to an RDBMS, creating tables for SCIDs and rows for events.
+    Note that the default MySQL engine is TokuDB.  If your MySQL
+    does not support TokuDB, then set the EVENTLOGGING_MYSQL_ENGINE
+    environment variable to the engine you want to use.  E.g.
 
-    # Don't pass 'replace' and 'statsd_host' parameter to SQLAlchemy.
-    uri = uri_delete_query_item(uri, 'replace')
-    uri = uri_delete_query_item(uri, 'statsd_host')
+      export EVENTLOGGING_MYSQL_ENGINE=InnoDB
+
+    :param uri:         SQLAlchemy bind URI.
+    :param replace:     If true, INSERT REPLACE will be used.
+    :param statsd_host: hostname of statsd instance to which insert stats will
+                        be sent.
+    :param batch_size:  Number of events per schema to insert as a batch.
+    :param batch_time:  Number of second to wait before inserting a batch.
+    :param queue_size:  Number of batches waiting to be inserted.
+    """
+    import sqlalchemy
 
     logger = logging.getLogger('Log')
 
@@ -282,6 +300,10 @@ def sql_writer(uri, replace=False, statsd_host=''):
     stats = None
     if statsd_host:
         stats = statsd.StatsClient(statsd_host, 8125, prefix='eventlogging')
+
+    # Don't pass non SQLAlchemy parameters to SQLAlchemy.
+    for argname in inspect.getargspec(sql_writer)[0]:
+        uri = uri_delete_query_item(uri, argname)
 
     meta = sqlalchemy.MetaData(bind=uri)
     # Each scid stores a buffer and the timestamp of the first insertion.
@@ -304,10 +326,6 @@ def sql_writer(uri, replace=False, statsd_host=''):
             # that the connection is alive, and reconnect if necessary.
             dbapi_connection.ping(True)
     try:
-        batch_size = 3000
-        batch_time = 300  # in seconds
-        # Max number of batches pending insertion.
-        queue_size = 100
         sleep_seconds = 5
         # Link the main thread to the worker thread so we
         # don't keep filling the queue if the worker died.
