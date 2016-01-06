@@ -7,7 +7,6 @@
 
 """
 from __future__ import unicode_literals
-from collections import deque
 
 import datetime
 import itertools
@@ -30,8 +29,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         """If an attempt is made to store an event for which no table
         exists, the schema is automatically retrieved and a suitable
         table generated."""
-        events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
-        eventlogging.store_sql_events(self.meta, events_batch)
+        eventlogging.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, [self.event])
         table_name = TABLE_NAME_FORMAT % TEST_SCHEMA_SCID
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
@@ -46,8 +45,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         """If an attempt is made to store an event with meta (not encapsulated)
         for which no table exists, the schema is automatically retrieved and a
         suitable table generated."""
-        events_batch = deque([(TEST_META_SCHEMA_SCID, [self.event_with_meta])])
-        eventlogging.store_sql_events(self.meta, events_batch)
+        eventlogging.store_sql_events(
+            self.meta, TEST_META_SCHEMA_SCID, [self.event_with_meta])
         table_name = TABLE_NAME_FORMAT % TEST_META_SCHEMA_SCID
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
@@ -82,8 +81,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
 
     def test_encoding(self):
         """Timestamps and unicode strings are correctly encoded."""
-        events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
-        eventlogging.jrm.store_sql_events(self.meta, events_batch)
+        eventlogging.jrm.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, [self.event])
         table = eventlogging.jrm.get_table(self.meta, TEST_SCHEMA_SCID)
         row = table.select().execute().fetchone()
         self.assertEqual(row['event_value'], '☆ 彡')
@@ -96,8 +95,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
     def test_reflection(self):
         """Tables which exist in the database but not in the MetaData cache are
         correctly reflected."""
-        events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
-        eventlogging.store_sql_events(self.meta, events_batch)
+        eventlogging.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, [self.event])
 
         # Tell Python to forget everything it knows about this database
         # by purging ``MetaData``. The actual data in the database is
@@ -112,15 +111,16 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         # The ``checkfirst`` arg to :func:`sqlalchemy.Table.create`
         # will ensure that we don't attempt to CREATE TABLE on the
         # already-existing table:
-        events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
-        eventlogging.store_sql_events(self.meta, events_batch, True)
+        eventlogging.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, [self.event], True)
         self.assertIn('TestSchema_123', self.meta.tables)
 
     def test_happy_case_insert_more_than_one_event(self):
         """Insert more than one event on database using batch_write"""
         another_event = next(self.event_generator)
-        events_batch = deque([(TEST_SCHEMA_SCID, [another_event, self.event])])
-        eventlogging.store_sql_events(self.meta, events_batch)
+        event_list = [another_event, self.event]
+        eventlogging.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, event_list)
         table = self.meta.tables['TestSchema_123']
         # is the table on the db  and does it have the right data?
         s = sqlalchemy.sql.select([table])
@@ -135,13 +135,13 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         insert the other items.
         """
         # insert event
-        events_batch = deque([(TEST_SCHEMA_SCID, [self.event])])
-        eventlogging.jrm.store_sql_events(self.meta, events_batch)
+        eventlogging.jrm.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, [self.event])
         # now try to insert list of events in which this event is included
         another_event = next(self.event_generator)
         event_list = [another_event, self.event]
-        events_batch = deque([(TEST_SCHEMA_SCID, event_list)])
-        eventlogging.store_sql_events(self.meta, events_batch, replace=True)
+        eventlogging.store_sql_events(
+            self.meta, TEST_SCHEMA_SCID, event_list, replace=True)
 
         # we should still have to insert the other record though
         table = self.meta.tables['TestSchema_123']
@@ -150,11 +150,11 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         rows = results.fetchall()
         self.assertEqual(len(rows), 2)
 
-    def test_event_queue_is_empty(self):
+    def test_event_list_is_empty(self):
         """An empty event queue is handled well
         No exception is raised"""
         event_list = []
-        eventlogging.store_sql_events(self.meta, event_list)
+        eventlogging.store_sql_events(self.meta, TEST_SCHEMA_SCID, event_list)
 
     def test_grouping_of_events_happy_case(self):
         """Events belonging to the same schema with the same
@@ -179,8 +179,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         set of optional fields are inserted correctly"""
         another_event = next(self.event_generator)
         # ensure both events get inserted?
-        events_batch = deque([(TEST_SCHEMA_SCID, [another_event, self.event])])
-        eventlogging.store_sql_events(self.meta, events_batch)
+        event_list = [another_event, self.event]
+        eventlogging.store_sql_events(self.meta, TEST_SCHEMA_SCID, event_list)
         table = self.meta.tables['TestSchema_123']
         # is the table on the db  and does it have the right data?
         s = sqlalchemy.sql.select([table])

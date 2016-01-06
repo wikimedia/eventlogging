@@ -49,10 +49,6 @@ ENGINE_TABLE_OPTIONS = {
     }
 }
 
-# How long (in seconds) we should accumulate events before flushing
-# to the database.
-DB_FLUSH_INTERVAL = 2
-
 
 class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
     """A :class:`sqlalchemy.TypeDecorator` for MediaWiki timestamps."""
@@ -231,10 +227,11 @@ def insert_sort_key(event):
     return tuple(sorted(event))
 
 
-def store_sql_events(meta, events_batch, replace=False,
-                     on_insert_callback=None):
-    """Store events in the database.
-    It assumes that the events come broken down by scid."""
+def store_sql_events(meta, scid, scid_events, replace=False):
+    """Store a batch of events in the database.
+    It assumes that all events belong to the same scid."""
+    if len(scid_events) == 0:
+        return
     logger = logging.getLogger('Log')
 
     dialect = meta.bind.dialect
@@ -244,38 +241,33 @@ def store_sql_events(meta, events_batch, replace=False,
     else:
         insert = _insert_sequential
 
-    while len(events_batch) > 0:
-        scid, scid_events = events_batch.popleft()
-        prepared_events = [prepare(e) for e in scid_events]
+    # Each event here should be the same schema, so we can
+    # check if the first event should be encapsulated
+    # and use that when constructing the create table
+    # statement in declare_table.
+    should_encapsulate = scid_events[0].should_encapsulate()
 
-        # Each event here should be the same schema, so we can
-        # check if the first event should be encapsulated
-        # and use that when constructing the create table
-        # statement in declare_table.
-        should_encapsulate = scid_events[0].should_encapsulate()
+    prepared_events = [prepare(e) for e in scid_events]
+    # TODO: Avoid breaking the inserts down by same set of fields,
+    # instead force a default NULL, 0 or '' value for optional fields.
+    prepared_events.sort(key=insert_sort_key)
+    for _, grouper in itertools.groupby(prepared_events, insert_sort_key):
+        events = list(grouper)
+        table = get_table(meta, scid, should_encapsulate)
 
-        # TODO: Avoid breaking the inserts down by same set of fields,
-        # instead force a default NULL, 0 or '' value for optional fields.
-        prepared_events.sort(key=insert_sort_key)
-        for _, grouper in itertools.groupby(prepared_events, insert_sort_key):
-            events = list(grouper)
-            table = get_table(meta, scid, should_encapsulate)
+        insert_started_at = time.time()
+        insert(table, events, replace)
+        insert_time_taken = time.time() - insert_started_at
 
-            insert_started_at = time.time()
-            insert(table, events, replace)
-            insert_time_taken = time.time() - insert_started_at
-
-            # The insert operation is all or nothing - either all events have
-            # been inserted successfully (sqlalchemy wraps the insertion in a
-            # transaction), or an exception is thrown and it's not caught
-            # anywhere. This means that if the following line is reached,
-            # len(events) events have been inserted, so we can log it.
-            logger.info(
-                'Inserted %d %s_%s events in %f seconds',
-                len(events), scid[0], scid[1], insert_time_taken
-            )
-            if on_insert_callback:
-                on_insert_callback(len(events))
+        # The insert operation is all or nothing - either all events have
+        # been inserted successfully (sqlalchemy wraps the insertion in a
+        # transaction), or an exception is thrown and it's not caught
+        # anywhere. This means that if the following line is reached,
+        # len(events) events have been inserted, so we can log it.
+        logger.info(
+            'Inserted %d %s_%s events in %f seconds',
+            len(events), scid[0], scid[1], insert_time_taken
+        )
 
 
 def _property_getter(item):

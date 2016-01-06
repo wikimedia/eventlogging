@@ -15,8 +15,6 @@ import glob
 import imp
 import inspect
 
-from functools import partial
-
 import logging
 import logging.handlers
 import os
@@ -29,10 +27,10 @@ import traceback
 import uuid
 
 from .compat import items, json
-from .utils import PeriodicThread, uri_delete_query_item
+from .utils import uri_delete_query_item
 from .factory import writes, reads
 from .streams import stream, pub_socket, sub_socket, udp_socket
-from .jrm import store_sql_events, DB_FLUSH_INTERVAL
+from .jrm import store_sql_events
 from .topic import TopicNotFound
 
 __all__ = ('load_plugins',)
@@ -255,26 +253,13 @@ def kafka_writer(
                 kafka_producer.send_messages(message_topic, message)
 
 
-def insert_stats(stats, inserted_count):
-    """
-    Callback function to increment mysql inserted metric in statsd,
-    that is called after successful insertion of events into mysql.
-
-        stats           - Instance of stats.StatsClient
-        inserted_count  - Number of events that have been inserted
-    """
-    if stats:
-        stats.incr('overall.inserted', inserted_count)
-
-
 @writes('mysql', 'sqlite')
 def sql_writer(
     uri,
     replace=False,
     statsd_host='',
     batch_size=3000,
-    batch_time=300,  # in seconds
-    queue_size=100  # Max number of batches pending insertion.
+    batch_time=300
 ):
     """
     Writes to an RDBMS, creating tables for SCIDs and rows for events.
@@ -288,9 +273,8 @@ def sql_writer(
     :param replace:     If true, INSERT REPLACE will be used.
     :param statsd_host: hostname of statsd instance to which insert stats will
                         be sent.
-    :param batch_size:  Number of events per schema to insert as a batch.
-    :param batch_time:  Number of second to wait before inserting a batch.
-    :param queue_size:  Number of batches waiting to be inserted.
+    :param batch_size:  Max number of events per schema to insert as a batch.
+    :param batch_time:  Max seconds to wait before inserting a batch.
     """
     import sqlalchemy
 
@@ -306,68 +290,43 @@ def sql_writer(
         uri = uri_delete_query_item(uri, argname)
 
     meta = sqlalchemy.MetaData(bind=uri)
-    # Each scid stores a buffer and the timestamp of the first insertion.
-    events = collections.defaultdict(lambda: ([], time.time()))
-    events_batch = collections.deque()
-    # Since the worker is unaware of the statsd host, create a partial
-    # that binds the statsd client argument to the callback
-    worker = PeriodicThread(interval=DB_FLUSH_INTERVAL,
-                            target=store_sql_events,
-                            args=(meta, events_batch),
-                            kwargs={'replace': replace,
-                                    'on_insert_callback':
-                                        partial(insert_stats, stats)})
-    worker.start()
-
     if meta.bind.dialect.name == 'mysql':
         @sqlalchemy.event.listens_for(sqlalchemy.pool.Pool, 'checkout')
         def ping(dbapi_connection, connection_record, connection_proxy):
             # Just before executing an insert, call mysql_ping() to verify
             # that the connection is alive, and reconnect if necessary.
             dbapi_connection.ping(True)
+
+    # For each SCID (schema, revision) we store an event batch and
+    # the timestamp of the first event.
+    events = collections.defaultdict(lambda: ([], time.time()))
     try:
-        sleep_seconds = 5
-        # Link the main thread to the worker thread so we
-        # don't keep filling the queue if the worker died.
-        while worker.is_alive():
-            # If the queue is too big, wait for the worker to empty it.
-            while len(events_batch) > queue_size:
-                logger.info('Sleeping %d seconds', sleep_seconds)
-                time.sleep(sleep_seconds)
+        while True:
             event = (yield)
-            # Break the event stream by schema (and revision)
+            # Group the event stream by schema (and revision)
             scid = event.scid()
             scid_events, first_timestamp = events[scid]
             scid_events.append(event)
-            if stats:
-                stats.incr('overall.insertAttempted')
-            # Check if the schema queue is too long or too old
+            # Whenever the batch reaches
+            # the size specified by batch_size or it hasn't received events
+            # for more than batch_time seconds it is flushed into mysql.
             if (len(scid_events) >= batch_size or
                     time.time() - first_timestamp >= batch_time):
-                logger.info(
-                    'Queueing %d %s_%s events for insertion',
-                    len(scid_events), scid[0], scid[1]
-                )
-                events_batch.append((scid, scid_events))
+                store_sql_events(meta, scid, scid_events, replace=replace)
+                if stats:
+                    stats.incr('overall.inserted', len(scid_events))
                 del events[scid]
-    except GeneratorExit:
-        # Allow the worker to complete any work that is
-        # already in progress before shutting down.
-        logger.info('Stopped main thread via GeneratorExit')
-        logger.info('Events when stopped %s', len(events))
-        worker.stop()
-        worker.join()
     except Exception:
         t = traceback.format_exc()
         logger.warn('Exception caught %s', t)
         raise
     finally:
-        # If there are any events remaining in the queue,
-        # process them in the main thread before exiting.
+        # If there are any batched events remaining,
+        # process them before exiting.
         for scid, (scid_events, _) in events.iteritems():
-            events_batch.append((scid, scid_events))
-        store_sql_events(meta, events_batch, replace=replace,
-                         on_insert_callback=partial(insert_stats, stats))
+            store_sql_events(meta, scid, scid_events, replace=replace)
+            if stats:
+                stats.incr('overall.inserted', len(scid_events))
 
 
 @writes('file')
