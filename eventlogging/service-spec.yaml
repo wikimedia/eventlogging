@@ -31,10 +31,12 @@ paths:
         - title: Produce a valid test event
           request:
             body:
-            - test: "this is a test"
+              test: "this is a test"
               meta:
                 topic: "test.event"
                 id: "12345678-1234-5678-1234-567812345678"
+            headers:
+              Content-Type: application/json
           response:
             status: 201
 
@@ -49,5 +51,5 @@ paths:
         '200':
           description: The current topic->schema mapping and configuration
       x-amples:
-        response:
-          status: 200
+        - response:
+            status: 200

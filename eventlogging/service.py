@@ -55,7 +55,7 @@ with open(SWAGGER_SPEC_PATH) as f:
 
 # Use the topic that the swagger spec x-ample specifies
 # for allowing automated monitoring POSTs.
-spec_test_topic = swagger_spec['paths']['/v1/events']['post']['x-amples'][0]['request']['body'][0]['meta']['topic']  # noqa
+spec_test_topic = swagger_spec['paths']['/v1/events']['post']['x-amples'][0]['request']['body']['meta']['topic']  # noqa
 spec_test_scid = ('test_event', 1)
 
 
