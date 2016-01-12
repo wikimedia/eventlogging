@@ -14,10 +14,10 @@ import re
 import socket
 
 from .compat import items, json
+from .event import Event
 
-
-__all__ = ('iter_json', 'iter_unicode', 'make_canonical', 'pub_socket',
-           'stream', 'sub_socket', 'udp_socket')
+__all__ = ('iter_event', 'iter_json', 'iter_unicode', 'make_canonical',
+           'pub_socket', 'stream', 'sub_socket', 'udp_socket')
 
 # High water mark. The maximum number of outstanding messages to queue
 # in memory for any single peer that the socket is communicating with.
@@ -101,10 +101,17 @@ def iter_json(stream):
     return (json.loads(dgram) for dgram in iter_unicode(stream))
 
 
+def iter_event(stream):
+    """
+    Iterator; wraps each item in a stream created by iter_json as an Event.
+    """
+    return (Event(d) for d in iter_json(stream))
+
+
 def stream(s, raw=False):
-    """Convenience method for getting a JSON-based or line-based
+    """Convenience method for getting an Event-dict based or line-based
     streaming iterator."""
-    return iter_unicode(s) if raw else iter_json(s)
+    return iter_unicode(s) if raw else iter_event(s)
 
 
 def make_canonical(uri, protocol='tcp', host='127.0.0.1'):

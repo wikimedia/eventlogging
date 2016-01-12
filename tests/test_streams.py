@@ -70,3 +70,14 @@ class ZmqTestCase(TimeoutTestMixin, unittest.TestCase):
         subscriber = eventlogging.streams.iter_json(subscriber)
         self.pipe.send('{"message":"secret"}')
         self.assertEqual(next(subscriber), dict(message='secret'))
+
+    def test_iter_event(self):
+        """``iter_event`` decodes Event messages."""
+        subscriber = eventlogging.streams.sub_socket(
+            self.endpoint, identity='%s' % self.id())
+        subscriber = eventlogging.streams.iter_event(subscriber)
+        self.pipe.send('{"message":"secret"}')
+        self.assertEqual(
+            next(subscriber),
+            eventlogging.event.Event(message='secret')
+        )
