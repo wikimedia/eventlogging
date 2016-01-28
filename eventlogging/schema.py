@@ -217,7 +217,7 @@ def url_get_schema(url):
         schema = yaml.load(url_get(url))
 
     except (ValueError, EnvironmentError) as ex:
-        raise SchemaError('Schema fetch failure: %s' % ex)
+        raise SchemaError('Schema fetch from %s failed: %s' % (url, ex))
     # Make sure the schema itself validates.
     get_validator(schema).check_schema(schema)
     return schema

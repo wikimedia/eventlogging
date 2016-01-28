@@ -327,6 +327,10 @@ def sql_writer(
             store_sql_events(meta, scid, scid_events, replace=replace)
             if stats:
                 stats.incr('overall.inserted', len(scid_events))
+        logger.info(
+            'Finally finished inserting remaining events '
+            'before exiting sql handler.'
+        )
 
 
 @writes('file')
