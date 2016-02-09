@@ -307,7 +307,7 @@ def schema_mapper(schema):
     properties = {k: v for k, v in items(schema.get('properties', {}))
                   if k not in NO_DB_PROPERTIES}
 
-    columns = []
+    columns = [sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True)]
 
     for name, col in items(flatten(properties, f=_property_getter)):
         col.name = name

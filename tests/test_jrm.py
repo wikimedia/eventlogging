@@ -64,8 +64,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         # The columns we expect to see are..
         cols = set(eventlogging.utils.flatten(self.event))  # all properties
         cols -= set(eventlogging.jrm.NO_DB_PROPERTIES)      # unless excluded
-        cols.add('uuid')                                    # plus uuid
-
+        cols |= {'id', 'uuid'}                              # plus id, uuid
         self.assertSetEqual(set(t.columns.keys()), cols)
 
     def test_index_creation(self):
