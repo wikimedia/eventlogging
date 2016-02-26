@@ -111,8 +111,9 @@ def validate(log_line):
     Returns a tuple of (event, errors). If no object was decoded,
     'event' will be None."""
     try:
-        event_dict = parser.parse(log_line)
-        event = Event.factory(event_dict)
+        event = parser.parse(log_line)
+        event.pop('clientValidated', None)
+        event.pop('isTruncated', None)
     except ValueError as err:
         return None, [err]
 
