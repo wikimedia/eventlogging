@@ -40,7 +40,6 @@ import argparse
 import itertools
 
 from wsgiref.simple_server import make_server, WSGIRequestHandler
-from eventlogging import Event
 
 import eventlogging
 import jsonschema
