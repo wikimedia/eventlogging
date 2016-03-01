@@ -39,7 +39,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         results = self.engine.execute(s)
         row = results.fetchone()
         # see columns with print table.c
-        self.assertEqual(row['clientIp'], self.event['clientIp'])
+        self.assertEqual(row['uuid'], self.event['uuid'])
 
     def test_lazy_table_creation_with_meta(self):
         """If an attempt is made to store an event with meta (not encapsulated)

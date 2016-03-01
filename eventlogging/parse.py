@@ -15,8 +15,6 @@
   +--------+-----------------------------+
   | Symbol | Field                       |
   +========+=============================+
-  |   %h   | Client IP                   |
-  +--------+-----------------------------+
   |   %o   | Omit space-delimited string |
   +--------+-----------------------------+
   |   %j   | JSON event object           |
@@ -38,19 +36,16 @@
 from __future__ import division, unicode_literals
 
 import calendar
-import datetime
 import re
 import time
 import uuid
 
 from .compat import json, unquote_plus, uuid5
-from .crypto import keyhasher, rotating_key
 from .event import Event
 
 __all__ = (
     'LogParser', 'ncsa_to_unix',
     'ncsa_utcnow', 'capsule_uuid',
-    'hash_ip'
 )
 
 # Format string (as would be passed to `strftime`) for timestamps in
@@ -65,11 +60,6 @@ NCSA_FORMAT = '%Y-%m-%dT%H:%M:%S'
 #
 EVENTLOGGING_URL_FORMAT = (
     'event://%(recvFrom)s/?seqId=%(seqId)s&timestamp=%(timestamp).10s')
-
-# Specifies the length of time in seconds from the moment a key is
-# generated until it is expired and replaced with a new key. The key is
-# used to anonymize IP addresses.
-KEY_LIFESPAN = datetime.timedelta(days=90)
 
 
 def capsule_uuid(capsule):
@@ -109,29 +99,19 @@ def decode_qson(qson):
     return json.loads(unquote_plus(qson.strip('?;')))
 
 
-# A crytographic hash function for hashing client IPs. Produces HMAC SHA1
-# hashes by using the client IP as the message and a 64-byte byte string as
-# the key. The key is generated at runtime and is refreshed every 90 days.
-# It is not written anywhere. The hash value is useful for detecting spam
-# (large volume of events sharing a common origin).
-hash_ip = keyhasher(rotating_key(size=64, period=KEY_LIFESPAN.total_seconds()))
-
-
 class LogParser(object):
     """Parses raw varnish/MediaWiki log lines into encapsulated events."""
 
-    def __init__(self, format, ip_hasher=hash_ip):
+    def __init__(self, format):
         """Constructor.
 
         :param format: Format string.
-        :param ip_hasher: function ip_hasher(ip) -> hashed ip.
         """
         self.format = format
 
         # A mapping of format specifiers to a tuple of (regexp, caster).
         self.format_specifiers = {
             'd': (r'(?P<%s>\d+)', int),
-            'h': (r'(?P<clientIp>\S+)', ip_hasher),
             'i': (r'(?P<%s>[^\t]+)', str),
             'j': (r'(?P<capsule>\S+)', json.loads),
             'q': (r'(?P<capsule>\?\S+)', decode_qson),
@@ -149,7 +129,7 @@ class LogParser(object):
 
         # Compiled regexp.
         format = re.sub(' ', r'\s+', format)
-        raw = re.sub(r'(?<!%)%({(\w+)})?([dhijqsto])', self._repl, format)
+        raw = re.sub(r'(?<!%)%({(\w+)})?([dijqsto])', self._repl, format)
         self.re = re.compile(raw)
 
     def _repl(self, spec):

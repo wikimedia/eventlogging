@@ -98,8 +98,7 @@ E.g.
 ```javascript
 {'additionalProperties': False,
  'description': 'A wrapper around event objects that encodes generic metadata',
- 'properties': {'clientIp': {'description': 'Hashed IP address of client',
-   'type': 'string'},
+ 'properties': {
   'event': {u'additionalProperties': False,
    'description': 'Logs an edit conflict',
    'properties': {'namespace': {'description': 'The namespace of the page',

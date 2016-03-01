@@ -68,7 +68,7 @@ php_lexer = lexers.get_lexer_by_name('php', startinline=True)
 server_software = 'EventLogging/%s' % eventlogging.__version__
 
 seq_ids = itertools.count()
-parser = eventlogging.LogParser('%q %{recvFrom}s %{seqId}d %t %h')
+parser = eventlogging.LogParser('%q %{recvFrom}s %{seqId}d %t %o')
 log_fmt = ('?%(QUERY_STRING)s %(SERVER_NAME)s '
            '%(SEQ_ID)d %(TIME)s %(REMOTE_ADDR)s')
 

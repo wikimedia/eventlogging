@@ -33,34 +33,6 @@ class LogParserTestCase(unittest.TestCase):
     def test_parse_client_side_events(self):
         """Parser test: client-side events."""
         parser = eventlogging.LogParser(
-            '%q %{recvFrom}s %{seqId}d %t %h %{userAgent}i')
-        raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
-               '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
-               '2%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizondo%22%7'
-               'D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp3022.esa'
-               'ms.wikimedia.org 132073 2013-01-19T23:16:38 86.149.229.149 '
-               'Mozilla/5.0')
-        parsed = {
-            'uuid': '799341a01ba957c79b15dc4d2d950864',
-            'recvFrom': 'cp3022.esams.wikimedia.org',
-            'wiki': 'testwiki',
-            'webHost': 'test.wikipedia.org',
-            'seqId': 132073,
-            'timestamp': 1358637398,
-            'clientIp': eventlogging.parse.hash_ip('86.149.229.149'),
-            'schema': 'Generic',
-            'revision': 13,
-            'userAgent': 'Mozilla/5.0',
-            'event': {
-                'articleTitle': 'Héctor Elizondo',
-                'articleId': 1
-            }
-        }
-        self.assertEqual(parser.parse(raw), parsed)
-
-    def test_parse_client_side_events_with_ignore_clientip(self):
-        """Parser test: client-side events."""
-        parser = eventlogging.LogParser(
             '%q %{recvFrom}s %{seqId}d %t %o %{userAgent}i')
         raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
                '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
@@ -107,12 +79,12 @@ class LogParserTestCase(unittest.TestCase):
 
     def test_parse_failure(self):
         """Parse failure raises ValueError exception."""
-        parser = eventlogging.LogParser('%q %{recvFrom}s %t %h')
+        parser = eventlogging.LogParser('%q %{recvFrom}s %t')
         with self.assertRaises(ValueError):
             parser.parse('Fails to parse.')
 
     def test_repr(self):
         """Calling 'repr' on LogParser returns canonical string
         representation."""
-        parser = eventlogging.LogParser('%q %{seqId}d %t %h')
-        self.assertEqual(repr(parser), "<LogParser('%q %{seqId}d %t %h')>")
+        parser = eventlogging.LogParser('%q %{seqId}d %t')
+        self.assertEqual(repr(parser), "<LogParser('%q %{seqId}d %t')>")

@@ -47,11 +47,6 @@ _meta_properties = {
         'description': 'the time stamp of the event, in ISO8601 format',
         'format': 'date-time'
     },
-    'client_ip': {
-        'type': 'string',
-        'description': 'IP (possibly hashed) of the client '
-        'submitting this event.'
-    },
     'id': {
         'pattern': '^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$',
         'type': 'string',
@@ -67,9 +62,6 @@ _schemas = {
     eventlogging.schema.CAPSULE_SCID[0]: {
         eventlogging.schema.CAPSULE_SCID[1]: {
             'properties': {
-                'clientIp': {
-                    'type': 'string'
-                },
                 'event': {
                     'type': 'object',
                     'required': True
@@ -198,7 +190,6 @@ _schemas = {
                         'id',
                         'dt',
                         'domain',
-                        'client_ip'
                     ],
                     'type': 'object',
                     'properties': _meta_properties
@@ -218,7 +209,6 @@ _event = {
         }
     },
     'seqId': 12345,
-    'clientIp': '127.0.0.1',
     'timestamp': 1358791834912,
     'wiki': 'enwiki',
     'webHost': 'en.m.wikipedia.org',
@@ -236,7 +226,6 @@ _event = {
 _incorrectly_serialized_empty_event = {
     'event': [],
     'seqId': 12345,
-    'clientIp': '127.0.0.1',
     'timestamp': 1358791834912,
     'wiki': 'enwiki',
     'webHost': 'en.m.wikipedia.org',
@@ -258,7 +247,6 @@ _event_with_meta = {
         'request_id': '12345678-1234-5678-1234-567812345678',
         'id': '12345678-1234-5678-1234-567812345678',
         'dt': '2015-10-30T00:00:00',
-        'client_ip': '127.0.0.1',
     },
     'required_field': 'I am required',
     'optional_field': 'I am optional'
