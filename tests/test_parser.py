@@ -58,6 +58,33 @@ class LogParserTestCase(unittest.TestCase):
         }
         self.assertEqual(parser.parse(raw), parsed)
 
+    def test_parse_client_side_events_with_ignore_clientip(self):
+        """Parser test: client-side events."""
+        parser = eventlogging.LogParser(
+            '%q %{recvFrom}s %{seqId}d %t %o %{userAgent}i')
+        raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
+               '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
+               '2%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizondo%22%7'
+               'D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp3022.esa'
+               'ms.wikimedia.org 132073 2013-01-19T23:16:38 - '
+               'Mozilla/5.0')
+        parsed = {
+            'uuid': '799341a01ba957c79b15dc4d2d950864',
+            'recvFrom': 'cp3022.esams.wikimedia.org',
+            'wiki': 'testwiki',
+            'webHost': 'test.wikipedia.org',
+            'seqId': 132073,
+            'timestamp': 1358637398,
+            'schema': 'Generic',
+            'revision': 13,
+            'userAgent': 'Mozilla/5.0',
+            'event': {
+                'articleTitle': 'Héctor Elizondo',
+                'articleId': 1
+            }
+        }
+        self.assertEqual(parser.parse(raw), parsed)
+
     def test_parser_server_side_events(self):
         """Parser test: server-side events."""
         parser = eventlogging.LogParser('%{seqId}d EventLogging %j')

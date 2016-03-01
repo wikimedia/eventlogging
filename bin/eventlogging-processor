@@ -24,6 +24,7 @@
      %j         JSON object
      %q         Query-string-encoded JSON
      %t         Timestamp in NCSA format.
+     %o         Omit/Ignore the value
 
   :copyright: (c) 2012 by Ori Livneh <ori@wikimedia.org>
   :license: GNU General Public Licence 2.0 or later

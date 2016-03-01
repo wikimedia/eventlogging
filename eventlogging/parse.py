@@ -17,6 +17,8 @@
   +========+=============================+
   |   %h   | Client IP                   |
   +--------+-----------------------------+
+  |   %o   | Omit space-delimited string |
+  +--------+-----------------------------+
   |   %j   | JSON event object           |
   +--------+-----------------------------+
   |   %q   | Query-string-encoded JSON   |
@@ -136,6 +138,9 @@ class LogParser(object):
             's': (r'(?P<%s>\S+)', str),
             't': (r'(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})',
                   ncsa_to_unix),
+            # Set caster to None for the ignore/omit format specifier
+            # so the corresponding value doesn't end up in the parsed event
+            'o': (r'(?P<omit>\S+)', None),
         }
 
         # Field casters, ordered by the relevant field's position in
@@ -144,7 +149,7 @@ class LogParser(object):
 
         # Compiled regexp.
         format = re.sub(' ', r'\s+', format)
-        raw = re.sub(r'(?<!%)%({(\w+)})?([dhijqst])', self._repl, format)
+        raw = re.sub(r'(?<!%)%({(\w+)})?([dhijqsto])', self._repl, format)
         self.re = re.compile(raw)
 
     def _repl(self, spec):
@@ -164,7 +169,10 @@ class LogParser(object):
         if match is None:
             raise ValueError(self.re, line)
         keys = sorted(match.groupdict(), key=match.start)
-        event = {k: f(match.group(k)) for f, k in zip(self.casters, keys)}
+        # Filter out the caster-key pairs where caster is None
+        caster_key_pairs = [pair for pair in zip(self.casters, keys)
+                            if pair[0]]
+        event = {k: f(match.group(k)) for f, k in caster_key_pairs}
         event.update(event.pop('capsule'))
         event['uuid'] = capsule_uuid(event)
         return Event(event)
