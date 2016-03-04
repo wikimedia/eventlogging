@@ -161,7 +161,8 @@ def handle_event(environ, start_response):
     start_response(status, headers)
 
     args.append_to.write(eventlogging.json.dumps(event) + "\n")
-
+    # Flush the log file so tailers can see event immediately.
+    args.append_to.flush()
     if args.verbose:
         print(heading('request'))
         print(log_line)
