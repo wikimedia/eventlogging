@@ -54,7 +54,7 @@ SCHEMA_URL_FORMAT = (
 SCHEMA_URI_PATTERN = re.compile(r'([\w\-]+)/(\d+)(?:\.(?:json|yaml|yml))?$')
 
 # SCID of the metadata object which wraps each capsule-style event.
-CAPSULE_SCID = ('EventCapsule', 14902521)
+CAPSULE_SCID = ('EventCapsule', 15423246)
 
 # TODO: Make new meta style EventError on meta.
 ERROR_SCID = ('EventError', 14035058)
