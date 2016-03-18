@@ -67,17 +67,11 @@ setup(
         # "mysqlclient>=1.3.7",
         "pygments>=1.5",
         "pykafka>=2.1.0",
-        # python-etcd requires python-openssl >= 0.14, which is not
-        # available in Trusty.  Our python-etcd package does work with
-        # python-openssl 0.13-2 which is available via .deb.
-        # Commenting out this python dependency and allowing puppet
-        # to satisify it until we upgrade eventlogging servers to Jessie.
-        # "python-etcd>=0.4.0",
         "PyYAML>=3.10",
         "pyzmq>=2.1",
         "sqlalchemy>=0.7",
         "statsd>=3.0",
-        # NOTE:  This is commented out until we no longer run on Jessie
+        # NOTE:  This is commented out until we no longer run on Trusty
         # and we no longer use sudo python setup.py install to install.
         # "tornado>=4.0",
         # "sprockets.mixins.statsd>=1.3.1",

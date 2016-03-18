@@ -17,7 +17,6 @@
     -h, --help  show this help message and exit
     --sid SID   set input socket identity
     --output-invalid  URI of stream which to send invalid events
-    --etcd-uri ETCD_URI
 
   formatters:
      %j         JSON object
