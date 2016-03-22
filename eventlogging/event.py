@@ -44,22 +44,39 @@ class Event(dict):
     @staticmethod
     def factory(data):
         """
-        Given a JSON string, dict, or list of dicts,
+        Given an open file, JSON string, dict, or list of dicts,
         this function will convert it to the corresponding
         Event(s).  That is, a JSON string dict or a dict
         will be returned as an Event, and a JSON string list
         or a list will be assumed to be a list of dicts
-        and will be returned as a list of Events.
+        and will be returned as a list of Events.  If a file
+        object is given, its contents will be read.  The contents
+        are assumed to be valid JSON.
         """
-        # If we are given a string, assume it is JSON.
-        if isinstance(data, string_types) or isinstance(data, bytes):
-            data = json.loads(data.decode('utf-8'))
 
-        # Now if we have a list assume each entry is
-        # a dict and turn them into Events
+        # NOTE that data is transformed in each of the following steps.
+
+        # 1. Try to convert from an object with a read method.
+        try:
+            data = data.read()
+        except (AttributeError, TypeError):
+            pass
+
+        # 2. Try to convert from bytes to utf-8 string.
+        try:
+            data = data.decode('utf-8')
+        except (AttributeError, TypeError):
+            pass
+
+        # 3. Try to convert from a JSON string to a python object.
+        if isinstance(data, string_types):
+            data = json.loads(data)
+
+        # 4. If the python object is a list, convert each
+        #    entry to an Event object.
         if isinstance(data, list):
             return list(map(Event, data))
-        # Else just return the Event
+        # 5. Else it was just an object, convert it to an Event.
         else:
             return Event(data)
 
@@ -90,7 +107,7 @@ class Event(dict):
         """
         Returns the topic for this event.
 
-        This will return the topic to use fopr this event.
+        This will return the topic to use for this event.
         If topic_format is None, then the value of 'topic' in the event
         meta data will be used.
         Otherwise the event wil be formatted with topic_format.
@@ -205,6 +222,11 @@ class Event(dict):
         return not self.has_meta_subobject()
 
     def set_scid(self, scid):
+        """
+        Sets the scid for this event.
+        - schema_uri if meta subject style
+        - schema and revision if EventCapsule style
+        """
         if self.has_meta_subobject():
             # Set schema uri to a simple name/revision uri.
             self['meta']['schema_uri'] = scid[0] + '/' + str(scid[1])

@@ -14,8 +14,11 @@ from eventlogging.service import (
 )
 from eventlogging.schema import is_schema_cached
 from eventlogging.topic import schema_name_for_topic, TopicNotConfigured
+from eventlogging.event import Event
 
 import json
+import os
+import tempfile
 from .fixtures import SchemaTestMixin
 
 
@@ -207,3 +210,55 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
 
         # but with overwrite True, all should be fine.
         append_spec_test_topic_and_schema(overwrite=True)
+
+
+class TestEventLoggingServiceWithFileWriter(
+    SchemaTestMixin, AsyncHTTPTestCase
+):
+    """
+    Testing of EventLogging REST produce API actually writing to a temp file.
+    A new temp file will be used for each test, and deleted in tearDown().
+    """
+    def setUp(self):
+        super(TestEventLoggingServiceWithFileWriter, self).setUp()
+
+    def tearDown(self):
+        os.remove(self.temp_file_path)
+
+    def get_app(self):
+        (_, self.temp_file_path) = tempfile.mkstemp(
+            prefix='eventlogging-service-test',
+            text=True,
+        )
+        writers = ['file://' + self.temp_file_path]
+        self.application = EventLoggingService(
+            writers,
+        )
+        return self.application
+
+    def event_from_temp_file(self):
+        """
+        Read the event(s) from the temp_file.
+        """
+        with open(self.temp_file_path, 'r') as f:
+            event = Event.factory(f)
+        return event
+
+    def test_produce_valid_event_configured_topic(self):
+        """
+        Posting a valid event to a configured topic returns 201
+        and is fully produced.
+        """
+        headers = {'Content-type': 'application/json'}
+        body = json.dumps(self.event_with_meta)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(201, response.code)
+
+        produced_event = self.event_from_temp_file()
+        self.assertEqual(
+            self.event_with_meta,
+            produced_event
+        )

@@ -168,6 +168,7 @@ class EventLoggingService(tornado.web.Application):
                 )
 
         validate(event, encapsulate=event.should_encapsulate())
+
         # Send this processed event to all configured writers
         # This will block until each writer finishes writing
         # this event.

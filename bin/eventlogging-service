@@ -85,6 +85,9 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGHUP, sighup_handler)
 
-    service = EventLoggingService(args.output, args.error_output)
+    service = EventLoggingService(
+        args.output,
+        args.error_output,
+    )
     # Start listening for requests.
     service.start(args.port, args.num_processes)

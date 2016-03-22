@@ -8,20 +8,70 @@
 from __future__ import unicode_literals
 
 import copy
+import json
+import tempfile
 import unittest
 
 import eventlogging
 from eventlogging import get_schema
-
-from .fixtures import SchemaTestMixin
+from eventlogging.event import Event
+from .fixtures import SchemaTestMixin, _event_with_meta
 
 
 class EventTestCase(SchemaTestMixin, unittest.TestCase):
     def setUp(self):
         super(EventTestCase, self).setUp()
 
-    def test_meta(self):
+    def test_factory_dict(self):
+        """Test Event.factory() with a dict."""
+        self.assertEqual(
+            Event.factory(_event_with_meta),
+            _event_with_meta
+        )
 
+    def test_factory_list(self):
+        """Test Event.factory() with a list of dicts."""
+        l = [_event_with_meta, _event_with_meta]
+        self.assertEqual(
+            Event.factory(l),
+            l
+        )
+
+    def test_factory_string(self):
+        """Test Event.factory() with a JSON string."""
+        s = json.dumps(_event_with_meta)
+        self.assertEqual(
+            Event.factory(s),
+            _event_with_meta
+        )
+
+    def test_factory_string_list(self):
+        """Test Event.factory() with a list JSON string."""
+        l = [_event_with_meta, _event_with_meta]
+        s = json.dumps(l)
+        self.assertEqual(
+            Event.factory(s),
+            l
+        )
+
+    def test_factory_file(self):
+        """Test Event.factory() with a file object."""
+        l = [_event_with_meta, _event_with_meta]
+        s = json.dumps(l)
+
+        file = tempfile.TemporaryFile(prefix='eventlogging-event-test')
+        # Write the string to the temp file.
+        file.write(s.encode('utf-8'))
+        # Seek to the beginning of file so Event.factory() can read it.
+        file.seek(0)
+        self.assertEqual(
+            Event.factory(file),
+            l
+        )
+        file.close()
+
+    def test_meta(self):
+        """Test that meta() returns proper data for both styles of events."""
         # EventCapsule fields only
         event_capsule = copy.deepcopy(self.event)
         del event_capsule['event']
