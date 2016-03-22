@@ -2,7 +2,7 @@
 
 # Builds and runs an EventLogging container
 
-if [ "${1}" == '--help' ]; then
+if [ "${1}" == '--help' -o "${1}" == '-h' ]; then
     echo "
 Usage: docker/run [<component>] ...
 
