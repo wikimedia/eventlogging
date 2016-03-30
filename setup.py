@@ -16,6 +16,12 @@ except ImportError:
 # Workaround for <https://bugs.python.org/issue15881#msg170215>:
 import multiprocessing  # noqa
 
+from pip.req import parse_requirements
+
+# parse_requirements() returns generator of pip.req.InstallRequirement objects
+install_requirements = parse_requirements('requirements.txt', session=False)
+# install_requires is a list of requirements
+install_requires = [str(ir.req) for ir in install_requirements]
 
 setup(
     name='eventlogging',
@@ -55,25 +61,5 @@ setup(
     ),
     zip_safe=False,
     test_suite='eventlogging.tests',
-    install_requires=(
-        "python-dateutil>=1.5",
-        "jsonschema>=0.7",
-        "kafka-python>=0.9.4",
-        # To run eventlogging with python3 in debian, you'll need a at
-        # python-mysqldb >= 1.3.4, which is not available in Jessie.
-        # pip calls this library 'mysqlclient', so we specify that here.
-        # NOTE:  This is commented out until we no longer run on Jessie
-        # and we no longer use sudo python setup.py install to install.
-        # "mysqlclient>=1.3.7",
-        "pygments>=1.5",
-        "pykafka>=2.1.0",
-        "PyYAML>=3.10",
-        "pyzmq>=2.1",
-        "sqlalchemy>=0.7",
-        "statsd>=3.0",
-        # NOTE:  This is commented out until we no longer run on Trusty
-        # and we no longer use sudo python setup.py install to install.
-        # "tornado>=4.0",
-        # "sprockets.mixins.statsd>=1.3.1",
-    )
+    install_requires=install_requires,
 )
