@@ -14,7 +14,7 @@ import collections
 import glob
 import imp
 import inspect
-
+import jsonschema
 import logging
 import logging.handlers
 import os
@@ -312,9 +312,13 @@ def sql_writer(
             # for more than batch_time seconds it is flushed into mysql.
             if (len(scid_events) >= batch_size or
                     time.time() - first_timestamp >= batch_time):
-                store_sql_events(meta, scid, scid_events, replace=replace)
-                if stats:
-                    stats.incr('overall.inserted', len(scid_events))
+                try:
+                    store_sql_events(meta, scid, scid_events, replace=replace)
+                except jsonschema.SchemaError as e:
+                    logger.error(e.message)
+                else:
+                    if stats:
+                        stats.incr('overall.inserted', len(scid_events))
                 del events[scid]
     except Exception:
         t = traceback.format_exc()
@@ -324,9 +328,13 @@ def sql_writer(
         # If there are any batched events remaining,
         # process them before exiting.
         for scid, (scid_events, _) in events.iteritems():
-            store_sql_events(meta, scid, scid_events, replace=replace)
-            if stats:
-                stats.incr('overall.inserted', len(scid_events))
+            try:
+                store_sql_events(meta, scid, scid_events, replace=replace)
+            except jsonschema.SchemaError as e:
+                logger.error(e.message)
+            else:
+                if stats:
+                    stats.incr('overall.inserted', len(scid_events))
         logger.info(
             'Finally finished inserting remaining events '
             'before exiting sql handler.'
