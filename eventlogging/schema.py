@@ -245,13 +245,18 @@ def load_local_schemas(schemas_path):
             url = 'file://' + os.path.join(path, f)
             logging.info("Loading schema from %s" % url)
             scid = scid_from_uri(url)
-            validate_scid(scid)
 
             if scid:
-                cache_schema(
-                    scid,
-                    url_get_schema(url)
-                )
+                try:
+                    validate_scid(scid)
+                    schema = url_get_schema(url)
+                except Exception as e:
+                    logging.error(
+                        "Failed loading schema from %s: %s" % (url, e)
+                    )
+                else:
+                    # If we loaded a valid schema, cache it.
+                    cache_schema(scid, schema)
 
 
 # TODO:
