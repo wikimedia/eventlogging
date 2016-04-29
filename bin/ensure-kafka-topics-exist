@@ -15,7 +15,7 @@ ap = argparse.ArgumentParser(
 
 ap.add_argument(
     '--topic-config',
-    default='./config/topics.yaml',
+    default='./config/schemas/config/eventbus-topics.yaml',
     help='Topic -> schema config file',
 )
 
@@ -25,8 +25,23 @@ ap.add_argument(
     help='Comma-separated list of kafka broker hosts',
 )
 
+ap.add_argument(
+    '--prefixes',
+    default='',
+    help='Comma-separated list of topic prefixes to use',
+)
 
-def ensure_topics_exist(kafka_client, topics):
+ap.add_argument(
+    '--no-prefix',
+    action='store_true',
+    help='Don\'t use topic name prefixes',
+)
+
+
+def ensure_topics_exist(kafka_client, topics, prefixes):
+    if prefixes:
+        topics = [dc_prefix + '.' + topic
+                  for topic in topics for dc_prefix in prefixes]
     for topic in topics:
         # Accessing the topic here will create it if
         # it doesn't already exist.
@@ -60,5 +75,16 @@ if __name__ == "__main__":
     with open(args.topic_config) as f:
         topic_config = yaml.load(f)
 
+    # check the topic name prefixes
+    if not args.prefixes and not args.no_prefix:
+        logging.error(
+            'You must specify the topic name prefixes or use --no-prefix!'
+        )
+        sys.exit(1)
+
     kafka_client = KafkaClient(hosts=args.brokers)
-    ensure_topics_exist(kafka_client, topic_config.keys())
+    if args.no_prefix:
+        args.prefixes = []
+    else:
+        args.prefixes = args.prefixes.split(',')
+    ensure_topics_exist(kafka_client, topic_config.keys(), args.prefixes)
