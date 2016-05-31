@@ -83,6 +83,10 @@ class Event(dict):
     def __repr__(self):
         return '<Event {0} of schema {1}>'.format(self.id(), self.scid())
 
+    def serialize(self):
+        """Serializes this event as utf-8 JSON."""
+        return json.dumps(self, sort_keys=True).encode('utf-8')
+
     def schema(self, encapsulate=False):
         """
         Returns the jsonschema for this event.

@@ -70,6 +70,16 @@ class EventTestCase(SchemaTestMixin, unittest.TestCase):
         )
         file.close()
 
+    def test_serialize(self):
+        """Test that serialize returns a JSON string."""
+        s = self.event.serialize()
+        # if we've got bytes, then decode as utf-8
+        if type(s) == bytes:
+            s = s.decode('utf-8')
+
+        unserialized_event = json.loads(s)
+        self.assertEqual(unserialized_event, self.event)
+
     def test_meta(self):
         """Test that meta() returns proper data for both styles of events."""
         # EventCapsule fields only

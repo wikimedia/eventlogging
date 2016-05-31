@@ -24,14 +24,14 @@ import sys
 import statsd
 import time
 import traceback
-import uuid
 
 from .compat import items, json
-from .utils import uri_delete_query_item
+from .event import Event
 from .factory import writes, reads
 from .streams import stream, pub_socket, sub_socket, udp_socket
 from .jrm import store_sql_events
 from .topic import TopicNotFound
+from .utils import uri_delete_query_item, kafka_ids
 
 __all__ = ('load_plugins',)
 
@@ -72,12 +72,15 @@ def mongodb_writer(uri, database='events'):
 @writes('kafka')
 def kafka_writer(
     path,
-    producer='simple',
     topic=None,
-    key='{schema}_{revision}',
+    key=None,
+    async=True,
+    sync_timeout=2.0,
     blacklist=None,
     raw=False,
-    **kafka_producer_args
+    identity=None,
+
+    **kafka_args
 ):
     """
     Write events to Kafka.
@@ -85,176 +88,156 @@ def kafka_writer(
     Kafka URIs look like:
     kafka:///b1:9092,b2:9092?topic=eventlogging_%s(schema)&async=True&...
 
-    This producer uses either SimpleProducer or KeyedProducer from
-    kafka-python.  You may pass any configs that base Producer takes
+    This producer KafkaProducer from the kafka-python library.
+    You may pass any configs that base Producer takes
     as keyword arguments via URI query params.
 
-    NOTE:  If you do not explicitly set it, async will default to True.
+    Arguments:
+        *path (str): URI path should be comma separated Kafka Brokers.
+            e.g. kafka01:9092,kafka02:9092,kafka03:9092
 
-        path      - URI path should be comma separated Kafka Brokers.
-                    e.g. kafka01:9092,kafka02:9092,kafka03:9092
+        *topic (str): Python format string topic name.
+            If the incoming event is a dict (not a raw string)
+            topic will be formatted against event.  I.e.
+            topic.format(**event).  Default: None.
 
-        producer  - Either 'keyed' or 'simple'.  Default: 'simple'.
+            If topic is None, the topic will be extracted from
+            the event meta data rather than formatting
+            against event.  This means that the 'topic' key must
+            be in the event metadata. You _must_ provide a static
+            topic if raw=True.
 
-        topic     - Python format string topic name.
-                    If the incoming event is a dict (not a raw string)
-                    topic will be formatted against event.  I.e.
-                    topic.format(**event).  Default: None.
+        *key (str): Format string key of the message in Kafka.
+            The key will be formatted against event.  I.e.
+            key.format(**event).  Default: None.
+            If raw=True, formatting will not happen, and the
+            key will be used exactly as set.
 
-                    If topic is None, the topic will be extracted from
-                    the event meta data rather than formatting
-                    against event.  This means that the 'topic' key must
-                    be in the event metadata. You _must_ provide a static
-                    topic if raw=True.
+        *async (bool): If True, this will not block to wait for Kafka
+            message ACKs before producing the next message.  Defaults to True.
 
-        key       - Format string key of the message in Kafka.
-                    The key will be formatted against event.  I.e.
-                    key.format(**event).  Default: '{schema}_{revision}'.
-                    This is ignored if you are using the simple producer.
-                    If raw=True, formatting will not happen, and the
-                    key will be used exactly as set.
+        *sync_timeout (float): If async is False, then we will wait this
+            number of seconds for the produce response to return.
+            This paramater is ignored if async is True.
 
-        blacklist - Pattern string matching a list of schemas that should not
-                    be written. This is useful to keep high volume schemas
-                    from being written to an output stream.  This will
-                    be ignored if the incoming events are raw.
+        *blacklist (str): Pattern string matching a list of schemas that
+            should not be written. This is useful to keep high volume schemas
+            from being written to an output stream.  This will
+            be ignored if the incoming events are raw.
 
-        raw       - Should the events be written as raw (encoded) or not?
-                    NOTE:  no topic or key interpolation will be done
-                    if raw is True.  Instead, topic and key
-                    will be used as provided.
+        *raw (bool): Should the incoming stream be treated as raw strings or
+            as Events?  No topic or key interpolation will be done
+            if raw is True.  Instead, topic and key will be used as provided.
+            Defaults to False.
+
+        *identity (str): Used as the prefix for the Kafka client id. If not
+            given unique one will be generated.
+
+    Yields:
+        kafka.future.Future.  This is experimental.
+
     """
-    from kafka import KafkaClient
-    from kafka import KeyedProducer
-    from kafka import SimpleProducer
-    from kafka.producer.base import Producer
-    from kafka.common import KafkaTimeoutError
+    from kafka import KafkaProducer
 
     # Cannot use raw without setting a specific topic to produce to.
     if raw and not topic:
-        raise Exception(
+        raise ValueError(
             'Cannot produce raw events to Kafka '
             'without setting topic parameter.'
         )
 
-    # Brokers should be in the uri path
-    brokers = path.strip('/')
-
-    # remove non Kafka Producer args from kafka_consumer_args
-    kafka_producer_args = {
-        k: v for k, v in items(kafka_producer_args)
-        if k in inspect.getargspec(Producer.__init__).args
+    # remove non KafkaProducer args from kafka_args
+    kafka_args = {
+        k: v for k, v in items(kafka_args)
+        if k in KafkaProducer._DEFAULT_CONFIG
     }
+    # If we are not using async, set default batch_size to 0.  This
+    # will cause KafkaProducer to not do any batching.
+    if not async and 'batch_size' not in kafka_args:
+        kafka_args['batch_size'] = 0
+    # If specifying api_version, it should be a string!
+    if 'api_version' in kafka_args:
+        kafka_args['api_version'] = str(kafka_args['api_version'])
 
-    # Use async producer by default
-    if 'async' not in kafka_producer_args:
-        kafka_producer_args['async'] = True
+    # Get a kafka client_id based on identity
+    (client_id, _) = kafka_ids(identity)
 
-    kafka = KafkaClient(brokers)
+    # Resuable function for serializing string to utf-8 bytes.
+    def serialize_string(s):
+        return s.encode('utf-8')
 
-    if producer == 'keyed':
-        ProducerClass = KeyedProducer
-    else:
-        ProducerClass = SimpleProducer
-
-    kafka_producer = ProducerClass(kafka, **kafka_producer_args)
-
-    # Wait only this long for a new topic to be created.
-    kafka_topic_create_timeout_seconds = 1.0
+    kafka_producer = KafkaProducer(
+        # Brokers should be in the uri path
+        bootstrap_servers=path.strip('/'),
+        client_id=client_id,
+        # Serialize keys as strings if we will be keying messages.
+        key_serializer=serialize_string if key else None,
+        # Serialize values as strings if raw, else assume they are Event dicts
+        value_serializer=serialize_string if raw else Event.serialize,
+        **kafka_args
+    )
 
     if blacklist:
         blacklist_pattern = re.compile(blacklist)
     else:
         blacklist_pattern = None
 
+    # Yielding response_future back from the coroutine send() call is
+    # experimental.
+    response_future = None
     while 1:
-        event = (yield)
+        event = (yield response_future)
 
-        # If raw, just utf-8 encode
-        if raw:
-            message_topic = topic.encode('utf-8')
-            message_key = key.encode('utf-8')
-            message = event.encode('utf-8')
-
-        # Else get topic and key from event dict
-        # and produce json string.
-        else:
-
-            # If we want to blacklist this schema from being produced.
-            if blacklist_pattern:
-                schema_name, revision = event.scid()
-                if blacklist_pattern.match(schema_name):
-                    logging.debug(
-                        '%s is blacklisted, not writing event %s.' %
-                        (schema_name, event)
-                    )
-                    continue
-
-            # Get topic from the event, possibly interpolating
-            # against topic as a format string.
-            try:
-                message_topic = event.topic(
-                    topic_format=topic
-                ).encode('utf-8')
-            # If we failed getting topic, log and skip the event.
-            except TopicNotFound as e:
-                logging.error('%s.  Skipping event' % e)
+        # If event is not raw and blacklist_pattern is set,
+        # then check to see if we should skip this event.
+        if not raw and blacklist_pattern:
+            schema_name, revision = event.scid()
+            if blacklist_pattern.match(schema_name):
+                logging.debug(
+                    '%s is blacklisted, not writing event %s.' %
+                    (schema_name, event)
+                )
                 continue
 
-            # Format the key against the event
-            if producer == 'keyed':
-                try:
-                    message_key = key.format(**event).encode('utf-8')
-                # If we failed getting key, log and skip the event.
-                except KeyError as e:
-                    logging.error(
-                        'Could not get message key from event. KeyError: %s. '
-                        'Skipping event.' % e
-                    )
-                    continue
-
-            message = json.dumps(event, sort_keys=True).encode('utf-8')
-
+        # Get the actual Kafka topic to which we will produce
         try:
-            # Make sure this topic exists before we attempt to produce to it.
-            # This call will timeout in topic_create_timeout_seconds.
-            # This should return faster than this if this kafka client has
-            # already cached topic metadata for this topic.  Otherwise
-            # it will try to ask Kafka for it each time.  Make sure
-            # auto.create.topics.enabled is true for your Kafka cluster!
-            kafka_producer.client.ensure_topic_exists(
-                message_topic,
-                kafka_topic_create_timeout_seconds
-            )
-        except KafkaTimeoutError as e:
-            error_message = "Failed to ensure Kafka topic %s exists " \
-                "in %f seconds when producing event. (%s)" % (
-                    message_topic,
-                    kafka_topic_create_timeout_seconds,
-                    e.message
+            message_topic = topic.encode('utf-8') if raw else \
+                event.topic(topic_format=topic).encode('utf-8')
+        # If we failed getting topic, log and skip the event.
+        except TopicNotFound as e:
+            logging.error('%s.  Skipping event' % e)
+            continue
+
+        # Unless key is found, just use None.
+        message_key = None
+        # If not raw and key is set, then look for the key in the event.
+        if not raw and key:
+            try:
+                message_key = key.format(**event)
+            # If we failed getting key, log and skip the event.
+            except KeyError as e:
+                logging.error(
+                    'Could not get message key from event. KeyError: %s. '
+                    'Skipping event.' % e
                 )
-            logging.error(error_message)
-            # If we are using a synchronous producer and the
-            # producer is configured to fail on error, then
-            # Re-raise the KafkaTimeoutError.
-            if not kafka_producer.async and kafka_producer.sync_fail_on_error:
-                raise e
-            # Else just skip the event.
-            else:
                 continue
-        else:
-            # send_messages() for the different producer types have different
-            # signatures.  Call it appropriately.
-            if producer == 'keyed':
-                kafka_producer.send_messages(
-                    message_topic, message_key, message
-                )
-            else:
-                kafka_producer.send_messages(message_topic, message)
+
+        # Produce the message.
+        response_future = kafka_producer.send(
+            message_topic, key=message_key, value=event
+        )
+
+        # If we didn't want async production, then get the
+        # result of the future now.
+        if not async:
+            # This will raise an exception if the produce request
+            # fails or is timed out.
+            response_future.get(sync_timeout)
+            response_future = None
 
 
-# NOTE: confluent-kafka is intended to replace kafka-python
-#       as eventlogging's Kafka producer.
+# NOTE: confluent-kafka is experimental, and may replace the above
+#       kafka-python based kafka:// writer.
 @writes('confluent-kafka')
 def confluent_kafka_writer(
     path,
@@ -329,12 +312,8 @@ def confluent_kafka_writer(
 
     blacklist_pattern = re.compile(blacklist) if blacklist else None
 
-    # If identity is not given create a default unique one.
-    # This will be used as the prefix for the Kafka client id.
-    identity = identity if identity else 'eventlogging-{0}'.format(
-        str(uuid.uuid1())
-    )
-    client_id = '{0}-{1}.{2}'.format(identity, socket.getfqdn(), os.getpid())
+    # Get a kafka client_id based on identity
+    (client_id, _) = kafka_ids(identity)
 
     # Remove anything that we know is not going to be a valid Producer
     # parameter
@@ -608,7 +587,7 @@ def kafka_reader(
     **kafka_consumer_args
 ):
     """
-    Reads events from Kafka.
+    Reads events from Kafka.  This handler uses pykafka.
 
     Kafka URIs look like:
     kafka:///b1:9092,b2:9092?topic=topic_name&identity=consumer_group_name&
@@ -636,11 +615,8 @@ def kafka_reader(
     from pykafka import KafkaClient as PyKafkaClient
     from pykafka import BalancedConsumer
 
-    # The identity param is used to define the consumer group name.
-    # If identity is empty create a default unique one. This ensures we don't
-    # accidentally put consumers to the same group. Explicitly specify identity
-    # to launch consumers in the same consumer group
-    identity = identity if identity else 'eventlogging-' + str(uuid.uuid1())
+    # Get consumer group_id based on identity.
+    (_, group_id) = kafka_ids(identity)
 
     # Brokers should be in the uri path
     # path.strip returns type 'unicode' and pykafka expects a string, so
@@ -657,7 +633,7 @@ def kafka_reader(
     kafka_topic = kafka_client.topics[topic.encode('ascii', 'ignore')]
 
     consumer = kafka_topic.get_balanced_consumer(
-        consumer_group=identity.encode('ascii', 'ignore'),
+        consumer_group=group_id.encode('ascii', 'ignore'),
         **kafka_consumer_args)
 
     # Define a generator to read from the BalancedConsumer instance
@@ -668,8 +644,8 @@ def kafka_reader(
     return stream((message.value for message in message_stream(consumer)), raw)
 
 
-# NOTE: confluent-kafka is intended to replace pykafka
-#       as eventlogging's Kafka producer.
+# NOTE: confluent-kafka and kafka-python readers are experimental.
+#       one may be chosen to replace the above pykafka based kafka:// reader.
 @reads('confluent-kafka')
 def confluent_kafka_reader(
     path,
@@ -735,15 +711,8 @@ def confluent_kafka_reader(
     # Use topics as an array if given, else just use topic
     topics = topics.split(',') if topics else [topic]
 
-    # identity is used to define the consumer group.id and the prefix of
-    # the client.id. If identity is not given create a default unique
-    # one. This ensures we don't accidentally put consumers to the same group.
-    # Explicitly specify identity to launch consumers in the same consumer
-    # group.
-    group_id = identity if identity else 'eventlogging-{0}'.format(
-        str(uuid.uuid1())
-    )
-    client_id = '{0}-{1}.{2}'.format(group_id, socket.getfqdn(), os.getpid())
+    # Get kafka client_id and group_id based on identity.
+    (client_id, group_id) = kafka_ids(identity)
 
     # Remove anything that we know is not going to be a valid
     # Kafka Consumer parameter from kwargs and then set some required
@@ -830,3 +799,89 @@ def confluent_kafka_reader(
 
     # Return a stream of message values.
     return stream(consume(kafka_consumer, poll_timeout), raw)
+
+
+@reads('kafka-python')
+def kafka_python_reader(
+    path,
+    topics=None,
+    identity=None,
+    raw=False,
+    **kafka_args
+):
+    """
+    Reads events from Kafka.
+
+    Kafka URIs look like:
+    kafka:///b1:9092,b2:9092?topics=topic1,topic2&identity=consumer_group_name&
+    &auto_commit_interval_ms=1000...
+
+    This reader uses the kafka-python KafkaConsumer.  You may pass
+    any configs that KafkaConsumer takes as keyword arguments as
+    URI query params.
+
+    auto_commit_interval_ms is by default 5 seconds.
+
+    If auto_commit_enable is True, then messages will be marked as done based
+    on the auto_commit_interval_ms time period.
+    This has the downside of committing message offsets before
+    work might be actually complete.  E.g. if inserting into MySQL, and
+    the process dies somewhere along the way, it is possible
+    that message offsets will be committed to Kafka for messages
+    that have not been inserted into MySQL.  Future work
+    will have to fix this problem somehow.  Perhaps a callback?
+
+    The 'topic' parameter is provided for backwards compatibility.
+    It will be used if topics is not given.
+
+    Arguments:
+        *path (str): Comma separated list of broker hostname:ports.
+
+        *topics (list): List of topics to subscribe to.
+
+        *identity (str): Used as the Kafka consumer group id, and the prefix of
+            the Kafka client id.  If not given, a new unique identity will
+            be created.
+
+        *raw (bool): If True, the generator returned will yield a stream of
+            strings, else a stream of Events.
+    """
+    if not topics:
+        raise ValueError(
+            'Cannot consume from Kafka without providing topics.'
+        )
+
+    from kafka import KafkaConsumer
+
+    # Get kafka client_id and group_id based on identity.
+    (client_id, group_id) = kafka_ids(identity)
+
+    # Use topics as an array.
+    if type(topics) != list:
+        topics = topics.split(',')
+
+    # remove non KafkaConsumer args from kafka_args
+    kafka_args = {
+        k: v for k, v in items(kafka_args)
+        if k in inspect.getargspec(KafkaConsumer.__init__).args
+    }
+
+    kafka_consumer = KafkaConsumer(
+        # Brokers should be in the URI path.
+        bootstrap_servers=path.strip('/'),
+        group_id=group_id,
+        client_id=client_id,
+        **kafka_args
+    )
+
+    logging.info(
+        'Consuming topics %s from Kafka in group %s as %s',
+        topics,
+        kafka_consumer.config['group_id'],
+        kafka_consumer.config['client_id']
+    )
+    # Subscribe to list of topics.
+    kafka_consumer.subscribe(topics)
+
+    # Return a stream of message values.
+    return stream((message.value for message in kafka_consumer), raw)

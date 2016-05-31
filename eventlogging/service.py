@@ -126,7 +126,7 @@ class EventLoggingService(tornado.web.Application):
         self.writers = {}
         for uri in writer_uris:
             self.writers[uri] = get_writer(uri)
-            logging.info('Publishing valid JSON events to %s.', uri)
+            logging.info('Publishing valid JSON events to %s', uri)
 
         # Errored events will be written to this writer.
         if error_writer_uri:
@@ -232,7 +232,7 @@ class EventLoggingService(tornado.web.Application):
             # error output writer fails too, an exception will be
             # thrown and not caught during the error_writer.send() call.
             except Exception as e:
-                error_message = 'Failed sending event %s. %s: %s.' % (
+                error_message = 'Failed sending event %s. %s: %s' % (
                     event,
                     type(e).__name__,
                     e.message

@@ -15,9 +15,11 @@ import dateutil.parser
 import logging
 import re
 import os
+import socket
 import sys
 import threading
 import traceback
+import uuid
 
 from .compat import (
     items, monotonic_clock, urisplit, urlencode, parse_qsl,
@@ -218,6 +220,25 @@ def parse_etcd_uri(etcd_uri):
         for h in parts.netloc.split(',')
     ])
     return etcd_kwargs
+
+
+def kafka_ids(identity=None):
+    """
+    Returns a tuple of (client_id, group_id) based on the eventlogging
+    identity.  These are useful for passing to Kafka clients.
+    If identity is None, 'eventlogging' + a uuid1 will be used.
+    """
+    # identity is used to define the consumer group.id and the prefix of
+    # the client.id. If identity is not given create a default unique
+    # one. This ensures we don't accidentally put consumers to the same group.
+    # Explicitly specify identity to launch consumers in the same consumer
+    # group.
+    identity = identity if identity else 'eventlogging-{0}'.format(
+        str(uuid.uuid1())
+    )
+    group_id = identity
+    client_id = '{0}-{1}.{2}'.format(group_id, socket.getfqdn(), os.getpid())
+    return (client_id, group_id)
 
 
 def datetime_from_uuid1(u):

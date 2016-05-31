@@ -117,3 +117,28 @@ class UtilsTestCase(unittest.TestCase):
         )
         with self.assertRaises(RuntimeError):
             eventlogging.utils.datetime_from_timestamp(self)
+
+    def test_kafka_ids(self):
+        """
+        Tests that kafka_ids returns (client_id, group_id) based on identity.
+        """
+        (client_id, group_id) = eventlogging.utils.kafka_ids()
+        self.assertTrue(
+            client_id.startswith('eventlogging-'),
+            'client_id should start with eventlogging-'
+        )
+        self.assertTrue(
+            group_id.startswith('eventlogging-'),
+            'group_id should start with eventlogging-'
+        )
+
+        (client_id, group_id) = eventlogging.utils.kafka_ids('test')
+        self.assertTrue(
+            client_id.startswith('test-'),
+            'client_id should start with test-'
+        )
+        self.assertEquals(
+            group_id,
+            'test',
+            'group_id should equal test'
+        )
