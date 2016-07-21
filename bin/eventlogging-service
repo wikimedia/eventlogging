@@ -4,8 +4,10 @@
 import argparse
 import logging
 import os
+import psutil
 import signal
 import textwrap
+import tornado.ioloop
 
 from eventlogging import setup_logging
 from eventlogging.service import (
@@ -74,20 +76,39 @@ if __name__ == "__main__":
 
     setup_logging(config_file=args.log_config)
 
-    # Initialize topic_config and schema_cache with schemas from local files.
+    # Initializes topic_config and schema_cache with schemas
+    # from local files.
     init_schemas_and_topic_config(args.topic_config, args.schemas_path)
 
     # Register a SIGHUP handler to reload all schemas
     # and topic_config on SIGHUP.
     def sighup_handler(signum, frame):
         logging.info('Got SIGHUP, reloading topic_config and local schemas...')
-        init_schemas_and_topic_config(args.topic_config, args.schemas_path)
 
+        # Insert a callback into the ioloop to reload schemas and topic config
+        tornado.ioloop.IOLoop.current().add_callback_from_signal(
+            # load_schemas_and_topic_config
+            init_schemas_and_topic_config,
+            args.topic_config,
+            args.schemas_path
+        )
+
+        # If tornado forked child processes, we need to SIGHUP those too.
+        if int(args.num_processes) != 1:
+            for child in psutil.Process().children():
+                logging.info(
+                    'Sending SIGHUP to child process %s from parent %s',
+                    child.pid, os.getpid()
+                )
+                child.send_signal(signal.SIGHUP)
+
+    # Register the SIGHUP handler
     signal.signal(signal.SIGHUP, sighup_handler)
 
     service = EventLoggingService(
         args.output,
         args.error_output,
     )
+
     # Start listening for requests.
     service.start(args.port, args.num_processes)

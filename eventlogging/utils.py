@@ -265,7 +265,7 @@ def setup_logging(config_file=None):
         logging.basicConfig(
             stream=sys.stderr,
             level=eventlogging_log_level,
-            format='%(asctime)s (%(threadName)-10s) %(message)s')
+            format='%(asctime)s [%(process)s] (%(threadName)-10s) %(message)s')
 
         # Set module logging level to INFO, DEBUG is too noisy.
         logging.getLogger("kafka").setLevel(logging.INFO)
