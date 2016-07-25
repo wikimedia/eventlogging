@@ -6,7 +6,6 @@
   This module implements a factory-like map of URI scheme handlers.
 
 """
-import ast
 import contextlib
 import inspect
 
@@ -35,7 +34,7 @@ def cast_string(v):
         'false': False
     }.get(v.lower(), v)
 
-    # Else try to convert v to an int or float or array or dict.
+    # Else try to convert v to an int or float
     if type(v) is not bool:
         try:
             v = int(v)
@@ -43,14 +42,7 @@ def cast_string(v):
             try:
                 v = float(v)
             except ValueError:
-                # If this looks like it could be an array or a dict, then try
-                # to parse it with ast.literal_eval.
-                if v.startswith('[') or v.startswith('{'):
-                    try:
-                        v = ast.literal_eval(v)
-                    except ValueError:
-                        pass
-
+                pass
     return v
 
 
