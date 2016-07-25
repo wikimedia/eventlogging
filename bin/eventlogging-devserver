@@ -12,8 +12,14 @@
   '//localhost:8100/event.gif' should work.
 
   Example:
-    event : {"wiki": "devwiki", "schema": "TrackedPageContentSaveComplete", "revision": 7872558, "event": {"revId": 10, "token": "foobar"}}
-    url : http://localhost:8100/event.gif?%7B%22wiki%22%3A+%22devwiki%22%2C+%22schema%22%3A+%22TrackedPageContentSaveComplete%22%2C+%22revision%22%3A+7872558%2C+%22event%22%3A+%7B%22revId%22%3A+10%2C+%22token%22%3A+%22foobar%22%7D%7D
+    event : {
+        "wiki": "devwiki", "schema": "TrackedPageContentSaveComplete",
+        "revision": 7872558, "event": {"revId": 10, "token": "foobar"}
+    }
+    url : http://localhost:8100/event.gif?%7B%22wiki%22%3A+%22devwiki%22
+        %2C+%22schema%22%3A+%22TrackedPageContentSaveComplete%22%2C+
+        %22revision%22%3A+7872558%2C+%22event%22%3A+%7B%22revId%22%3A+10%2C+
+        %22token%22%3A+%22foobar%22%7D%7D
 
 
   usage: eventlogging-devserver [-h] [--host HOST] [--port PORT]
