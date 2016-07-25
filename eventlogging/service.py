@@ -212,6 +212,16 @@ class EventLoggingService(tornado.web.Application):
                     e.message
                 )
 
+            # Catch generic Exceptions as well.  Note that if a configured
+            # error output writer fails too, an exception will be
+            # thrown and not caught during the error_writer.send() call.
+            except Exception as e:
+                error_message = 'Failed sending event %s. %s: %s.' % (
+                    event,
+                    type(e).__name__,
+                    e.message
+                )
+
             finally:
                 # If we encountered an error while processing this event,
                 # log it and create an EventError that will be returned.
