@@ -79,7 +79,13 @@ class EventLoggingService(tornado.web.Application):
     until your event is ACKed by Kafka.
     """
 
-    def __init__(self, writer_uris, error_writer_uri=None):
+    def __init__(
+        self,
+        writer_uris,
+        error_writer_uri=None,
+        port=8085,
+        num_processes=1
+    ):
         """
         Note: you should call init_schemas_and_topic_config()
         before you instantiate an EventLoggingService.
@@ -89,6 +95,10 @@ class EventLoggingService(tornado.web.Application):
 
         :param error_writer_uri: If configured, EventErrors will be written
         to this writer.
+
+        :param port: Port on which to listen for HTTP requests.
+
+        :num_processes: Number of processes to fork.
         """
 
         routes = [
@@ -103,6 +113,12 @@ class EventLoggingService(tornado.web.Application):
         ]
 
         super(EventLoggingService, self).__init__(routes)
+
+        self.server = tornado.httpserver.HTTPServer(self)
+        self.server.bind(port)
+        # Torando will fork now.  We need to fork before
+        # we instantiate eventlogging writers.
+        self.server.start(int(num_processes))
 
         # Valid events will be sent to each of these writers.
         # Save the writer_uris as keys so that we can restart
@@ -245,14 +261,10 @@ class EventLoggingService(tornado.web.Application):
         else:
             return event_errors
 
-    def start(self, port=8085, num_processes=1):
+    def start(self):
         """
-        Starts this application listening on port
-        with num_processes.
+        Starts the Tornado application ioloop.
         """
-        server = tornado.httpserver.HTTPServer(self)
-        server.bind(port)
-        server.start(int(num_processes))
         tornado.ioloop.IOLoop.current().start()
 
 

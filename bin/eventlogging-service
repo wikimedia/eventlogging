@@ -108,7 +108,9 @@ if __name__ == "__main__":
     service = EventLoggingService(
         args.output,
         args.error_output,
+        args.port,
+        args.num_processes,
     )
 
     # Start listening for requests.
-    service.start(args.port, args.num_processes)
+    service.start()
