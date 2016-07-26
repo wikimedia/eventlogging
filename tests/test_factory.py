@@ -84,3 +84,11 @@ class FactoryTestCase(unittest.TestCase):
             True,
             eventlogging.factory.cast_string("True")
         )
+        self.assertEqual(
+            ['string', 10],
+            eventlogging.factory.cast_string('["string", 10]')
+        )
+        self.assertEqual(
+            {'string': 10},
+            eventlogging.factory.cast_string('{"string": 10}')
+        )
