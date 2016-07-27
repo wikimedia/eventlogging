@@ -53,3 +53,17 @@ paths:
       x-amples:
         - response:
             status: 200
+
+  /v1/schemas:
+    get:
+      tags:
+        - Schema
+      description: "Gets the cached schemas"
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: The full schema cache, keyed by schema_name and then revision
+      x-amples:
+        - response:
+            status: 200

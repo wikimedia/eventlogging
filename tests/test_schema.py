@@ -67,19 +67,34 @@ class FileSchemaTestCase(unittest.TestCase):
             eventlogging.schema.scid_from_uri(
                 '/whatever/path/to/FakeSchema/123.yaml'
             ),
+            ('whatever/path/to/FakeSchema', 123)
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri(
+                '/whatever/path/to/FakeSchema/123.yaml',
+                '/whatever/path/to',
+            ),
             ('FakeSchema', 123)
         )
         self.assertEqual(
             eventlogging.schema.scid_from_uri(
                 'file:///whatever/path/to/FakeSchema/123.yaml'
             ),
-            ('FakeSchema', 123)
+            ('whatever/path/to/FakeSchema', 123)
         )
         self.assertEqual(
             eventlogging.schema.scid_from_uri(
-                'http:///example.org/whatever/path/to/FakeSchema/123.yaml'
+                'file:///whatever/path/to/FakeSchema/123.yaml',
+                '/whatever/path'
             ),
-            ('FakeSchema', 123)
+            ('to/FakeSchema', 123)
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri(
+                'http://example.org/whatever/path/to/FakeSchema/123.yaml',
+                '/whatever/path'
+            ),
+            ('to/FakeSchema', 123)
         )
         self.assertEqual(
             eventlogging.schema.scid_from_uri('12345 not a schema file'),
@@ -247,7 +262,10 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
             scid
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('file:///a/b/TestSchema/123'),
+            eventlogging.schema.scid_from_uri(
+                'file:///a/b/TestSchema/123',
+                '/a/b'
+            ),
             scid
         )
 

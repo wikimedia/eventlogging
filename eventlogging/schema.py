@@ -19,7 +19,7 @@ import yaml
 
 from jsonschema import ValidationError, SchemaError
 
-from .compat import integer_types, string_types, url_get
+from .compat import integer_types, string_types, url_get, urisplit
 
 __all__ = (
     'cache_schema', 'get_schema', 'validate', 'init_schema_cache',
@@ -28,7 +28,7 @@ __all__ = (
 )
 
 # Regular expression which matches valid schema names.
-SCHEMA_RE_PATTERN = r'[a-zA-Z0-9_-]{1,63}'
+SCHEMA_RE_PATTERN = r'([\./a-zA-Z0-9_-]){1,63}'
 SCHEMA_RE = re.compile(r'^{0}$'.format(SCHEMA_RE_PATTERN))
 
 # URL of index.php on the schema wiki (same as
@@ -41,17 +41,10 @@ SCHEMA_URL_FORMAT = (
     SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2'
 )
 
-
 # Use this to extract schemas from a local file name
-# File names look either like:
-# SchemaName.Revison.json (e.g Edit.123.json)
-# or
-# SchemaName.json (e.g. Delete.json)
-# If no revision is found in the file name,
-# the schema will be saved as revision 0 in the schema_cache.
-# NOTE:  Do not ever have an unrevisioned schema AND revisioned
-# schemas of the same name.
-SCHEMA_URI_PATTERN = re.compile(r'([\w\-]+)/(\d+)(?:\.(?:json|yaml|yml))?$')
+# File names must look like:
+# my/schema/name/<revision>.yaml (e.g mediawiki/page/create/123.yaml)
+SCHEMA_URI_PATTERN = re.compile(r'([\w\-\./]+)/(\d+)(?:\.(?:json|yaml|yml))?$')
 
 # SCID of the metadata object which wraps each capsule-style event.
 CAPSULE_SCID = ('EventCapsule', 15423246)
@@ -242,9 +235,16 @@ def load_local_schemas(schemas_path):
 
     for path, subdirs, files in os.walk(schemas_path):
         for f in files:
-            url = 'file://' + os.path.join(path, f)
+            # Skip this file if it isn't parseable yaml or json.
+            if not (f.endswith('.yaml') or
+                    f.endswith('.yml') or
+                    f.endswith('.json')):
+                continue
+
+            full_path = os.path.join(path, f)
+            url = 'file://' + full_path
             logging.info("Loading schema from %s" % url)
-            scid = scid_from_uri(url)
+            scid = scid_from_uri(url, schemas_path)
 
             if scid:
                 try:
@@ -272,15 +272,31 @@ def url_from_scid(scid):
     return SCHEMA_URL_FORMAT % scid
 
 
-def scid_from_uri(schema_uri):
+def scid_from_uri(schema_uri, base_path=None):
     """
-    Extracts scid from uri based on the
-    SCHEMA_URI_PATTERN regex.  If filename doesn't
+    Extracts scid from uri path based on the
+    SCHEMA_URI_PATTERN regex.  If uri doesn't
     match, this returns None.
+
+    If base_path is given, it will be removed from the path before
+    attempting to match against SCHEMA_URI_PATTERN.
+
+    Usage:
+        scid_from_uri('my/schema/1.yaml')
+            -> ('my/schema/, 1)
+        scid_from_uri('file:///base/my/schema/1.yaml', '/base')
+            -> ('my/schema', 1)
     """
-    match = SCHEMA_URI_PATTERN.search(schema_uri)
+
+    uri_path = urisplit(schema_uri).path
+    # If base_path was given, then remove it to get an unqualified
+    # schema_uri, containing just the schema name and revision.
+    if base_path:
+        uri_path = uri_path.replace(base_path, '')
+
+    match = SCHEMA_URI_PATTERN.search(uri_path)
     if match:
-        return (match.group(1), int(match.group(2)))
+        return (match.group(1).strip(os.path.sep), int(match.group(2)))
     else:
         logging.error("Could not extract scid from %s" % schema_uri)
         return None

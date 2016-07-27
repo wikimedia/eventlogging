@@ -25,7 +25,7 @@ from .compat import json
 from .event import create_event_error, Event
 from .factory import apply_safe, get_writer
 from .schema import (
-    cache_schema, init_schema_cache, is_schema_cached, validate
+    cache_schema, init_schema_cache, is_schema_cached, validate, schema_cache
 )
 from .topic import (
     get_topic_config, init_topic_config, latest_scid_for_topic,
@@ -107,6 +107,9 @@ class EventLoggingService(tornado.web.Application):
 
             # GET /v1/topics
             (r"/v1/topics", TopicConfigHandler),
+
+            # GET /v1/topics
+            (r"/v1/schemas", SchemasHandler),
 
             # GET /?spec
             (r'[/]?', SpecHandler),
@@ -366,10 +369,18 @@ class TopicConfigHandler(
     statsd.RequestMetricsMixin,
     tornado.web.RequestHandler
 ):
-
     def get(self):
         self.set_status(200)
         self.write(get_topic_config())
+
+
+class SchemasHandler(
+    statsd.RequestMetricsMixin,
+    tornado.web.RequestHandler
+):
+    def get(self):
+        self.set_status(200)
+        self.write(schema_cache)
 
 
 class SpecHandler(tornado.web.RequestHandler):
