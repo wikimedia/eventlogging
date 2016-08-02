@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-This script generates a stream of requests to beta-labs
-(bits.beta.wmflabs.org) to test EventLogging load limitations.
+This script generates a stream of requests to Beta Labs
+(beta.wmflabs.org) to test EventLogging load limitations.
 
 Thanks to Emilio Monti for the Worker and ThreadPool codes!
 https://code.activestate.com/recipes/577187-python-thread-pool/
@@ -24,7 +24,7 @@ SCHEMA_HOST = 'meta.wikimedia.org'
 SCHEMA_URL = ('/w/api.php?action=query&prop=revisions&format=json'
               '&rvprop=content&titles=Schema:%s&revid=%s')
 CAPSULE_REVISION = 10981547
-EL_URL = '/event.gif?%s;'
+EL_URL = '/beacon/event?%s;'
 
 
 class Worker(Thread):
@@ -151,8 +151,8 @@ def get_arguments():
     ap.add_argument(
         '--endpoint',
         help=('Hostname where events should be sent. '
-              'E.g. bits.wikimedia.org'),
-        default='bits.beta.wmflabs.org')
+              'E.g. www.wikimedia.org'),
+        default='deployment.beta.wmflabs.org')
     args = ap.parse_args()
 
     # Check and build sleep interval param.
