@@ -79,7 +79,6 @@ def kafka_writer(
     blacklist=None,
     raw=False,
     identity=None,
-
     **kafka_args
 ):
     """
@@ -91,6 +90,11 @@ def kafka_writer(
     This producer KafkaProducer from the kafka-python library.
     You may pass any configs that base Producer takes
     as keyword arguments via URI query params.
+
+    If the KafkaProducer kwarg 'retries' is not given
+    in kafka_args (via URI query params), it will be set to default 3.
+    This is to ensure that messages are retried upon routine metadata changes
+    like partition leadership change.
 
     Arguments:
         *path (str): URI path should be comma separated Kafka Brokers.
@@ -155,9 +159,14 @@ def kafka_writer(
     # will cause KafkaProducer to not do any batching.
     if not async and 'batch_size' not in kafka_args:
         kafka_args['batch_size'] = 0
+
     # If specifying api_version, it should be a string!
     if 'api_version' in kafka_args:
         kafka_args['api_version'] = str(kafka_args['api_version'])
+
+    # Set default retries to 3.
+    if 'retries' not in kafka_args:
+        kafka_args['retries'] = 3
 
     # Get a kafka client_id based on identity
     (client_id, _) = kafka_ids(identity)
