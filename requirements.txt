@@ -1,7 +1,7 @@
 python-dateutil>=1.5
 jsonschema>=0.7
 confluent-kafka>=0.9.1.2
-kafka-python>=0.9.4
+kafka-python>=1.3.0
 mysqlclient>=1.3.7
 pygments>=1.5
 pykafka>=2.1.0

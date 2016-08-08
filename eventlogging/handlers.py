@@ -156,7 +156,7 @@ def kafka_python_writer(
     # remove non KafkaProducer args from kafka_args
     kafka_args = {
         k: v for k, v in items(kafka_args)
-        if k in KafkaProducer._DEFAULT_CONFIG
+        if k in KafkaProducer.DEFAULT_CONFIG
     }
     # If we are not using async, set default batch_size to 0.  This
     # will cause KafkaProducer to not do any batching.
