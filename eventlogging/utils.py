@@ -290,5 +290,4 @@ def setup_logging(config_file=None):
 
         # Set module logging level to INFO, DEBUG is too noisy.
         logging.getLogger("kafka").setLevel(logging.INFO)
-        logging.getLogger("pykafka").setLevel(logging.INFO)
         logging.getLogger("kazoo").setLevel(logging.INFO)

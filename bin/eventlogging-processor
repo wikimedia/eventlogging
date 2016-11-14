@@ -120,6 +120,7 @@ def write_event_error(
     except Exception as e:
         logging.error('Unable to create EventError object: %s' % e.message)
 
+
 for raw_event in get_reader(args.input):
     event = None
     try:

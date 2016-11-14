@@ -58,7 +58,6 @@ setup(
         'bin/eventlogging-processor',
         'bin/eventlogging-reporter',
         'bin/eventlogging-service',
-        'bin/ensure-kafka-topics-exist',
     ),
     zip_safe=False,
     test_suite='eventlogging.tests',
