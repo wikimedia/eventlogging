@@ -163,9 +163,12 @@ def kafka_python_writer(
     if not async and 'batch_size' not in kafka_args:
         kafka_args['batch_size'] = 0
 
-    # If specifying api_version, it should be a string!
+    # kafka-python expects api_version to be a tuple of ints.
+    # Convert the semvar string.
     if 'api_version' in kafka_args:
-        kafka_args['api_version'] = str(kafka_args['api_version'])
+        kafka_args['api_version'] = tuple(
+            [int(i) for i in str(kafka_args['api_version']).split('.')]
+        )
 
     # Set default retries to 3.
     if 'retries' not in kafka_args:
@@ -664,6 +667,13 @@ def kafka_python_reader(
         k: v for k, v in items(kafka_args)
         if k in KafkaConsumer.DEFAULT_CONFIG
     }
+
+    # kafka-python expects api_version to be a tuple of ints.
+    # Convert the semvar string.
+    if 'api_version' in kafka_args:
+        kafka_args['api_version'] = tuple(
+            [int(i) for i in str(kafka_args['api_version']).split('.')]
+        )
 
     # Be flexible with auto_offset_reset values.  The enum names
     # have changed in different clients and versions, but the int
