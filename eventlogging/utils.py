@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 import copy
 import datetime
 import dateutil.parser
+import json
 import logging
 import re
 import os
@@ -20,6 +21,7 @@ import sys
 import threading
 import traceback
 import uuid
+from ua_parser import user_agent_parser
 
 from .compat import (
     items, monotonic_clock, urisplit, urlencode, parse_qsl,
@@ -291,3 +293,29 @@ def setup_logging(config_file=None):
         # Set module logging level to INFO, DEBUG is too noisy.
         logging.getLogger("kafka").setLevel(logging.INFO)
         logging.getLogger("kazoo").setLevel(logging.INFO)
+
+
+def parse_ua(userAgent):
+    """
+    Returns a json string containing the parsed User Agent data
+    from a request's UA string. Uses the following format:
+    {
+        "device_family":"Other",
+        "browser_major":"11",
+        "os_family":"Windows",
+        "os_major":"-",
+        "browser_family":"IE",
+        "os_minor":"-"
+    }
+    """
+    parsed_ua = user_agent_parser.Parse(userAgent)
+    formatted_ua = {}
+    formatted_ua['device_family'] = parsed_ua['device']['family']
+    formatted_ua['browser_major'] = parsed_ua['user_agent']['major']
+    formatted_ua['os_family'] = parsed_ua['os']['family']
+    formatted_ua['os_major'] = parsed_ua['os']['major']
+    formatted_ua['browser_family'] = parsed_ua['user_agent']['family']
+    formatted_ua['os_minor'] = parsed_ua['os']['minor']
+    # escape json so it doesn't cause problems when validating
+    # to string (per capsule definition)
+    return json.dumps(formatted_ua)

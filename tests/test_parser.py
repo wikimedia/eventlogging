@@ -10,6 +10,7 @@ from __future__ import unicode_literals
 
 import calendar
 import datetime
+import json
 import unittest
 
 import eventlogging
@@ -39,7 +40,16 @@ class LogParserTestCase(unittest.TestCase):
                '2%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizondo%22%7'
                'D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp3022.esa'
                'ms.wikimedia.org 132073 2013-01-19T23:16:38 - '
-               'Mozilla/5.0')
+               'Mozilla/5.0 (X11; Linux x86_64; rv:10.0)'
+               ' Gecko/20100101 Firefox/10.0')
+        ua = json.dumps({
+                'os_minor': None,
+                'os_major': None,
+                'device_family': 'Other',
+                'os_family': 'Linux',
+                'browser_major': '10',
+                'browser_family': 'Firefox'
+            })
         parsed = {
             'uuid': '799341a01ba957c79b15dc4d2d950864',
             'recvFrom': 'cp3022.esams.wikimedia.org',
@@ -49,7 +59,7 @@ class LogParserTestCase(unittest.TestCase):
             'timestamp': 1358637398,
             'schema': 'Generic',
             'revision': 13,
-            'userAgent': 'Mozilla/5.0',
+            'userAgent': ua,
             'event': {
                 'articleTitle': 'Héctor Elizondo',
                 'articleId': 1
