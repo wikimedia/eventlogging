@@ -42,6 +42,7 @@ import uuid
 
 from .compat import json, unquote_plus, uuid5
 from .event import Event
+from .utils import parse_ua
 
 __all__ = (
     'LogParser', 'ncsa_to_unix',
@@ -155,6 +156,9 @@ class LogParser(object):
         event = {k: f(match.group(k)) for f, k in caster_key_pairs}
         event.update(event.pop('capsule'))
         event['uuid'] = capsule_uuid(event)
+        if ('userAgent' in event) and event['userAgent']:
+            parsed_ua = parse_ua(event['userAgent'])
+            event['userAgent'] = parsed_ua
         return Event(event)
 
     def __repr__(self):

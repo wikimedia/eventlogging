@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 import copy
 import datetime
 import dateutil.parser
+import json
 import logging
 import re
 import os
@@ -20,6 +21,7 @@ import sys
 import threading
 import traceback
 import uuid
+from ua_parser import user_agent_parser
 
 from .compat import (
     items, monotonic_clock, urisplit, urlencode, parse_qsl,
@@ -291,3 +293,47 @@ def setup_logging(config_file=None):
         # Set module logging level to INFO, DEBUG is too noisy.
         logging.getLogger("kafka").setLevel(logging.INFO)
         logging.getLogger("kazoo").setLevel(logging.INFO)
+
+
+def parse_ua(user_agent):
+    """
+    Returns a json string containing the parsed User Agent data
+    from a request's UA string. Uses the following format:
+    {
+        "device_family": "Other",
+        "browser_family": "IE",
+        "browser_major": "11",
+        "browser_major": "0",
+        "os_family": "Windows Vista",
+        "os_major": null,
+        "os_minor": null,
+        "wmf_app_version": "-"
+    }
+
+    App version in user agents is parsed as follows:
+    WikipediaApp/5.3.1.1011 (iOS 10.0.2; Phone)
+    "wmf_app_version":"5.3.1.1011"
+    WikipediaApp/2.4.160-r-2016-10-14 (Android 4.4.2; Phone) Google Play
+    "wmf_app_version":"2.4.160-r-2016-10-14"
+    """
+    parsed_ua = user_agent_parser.Parse(user_agent)
+    formatted_ua = {}
+    formatted_ua['device_family'] = parsed_ua['device']['family']
+    formatted_ua['browser_family'] = parsed_ua['user_agent']['family']
+    formatted_ua['browser_major'] = parsed_ua['user_agent']['major']
+    formatted_ua['browser_minor'] = parsed_ua['user_agent']['minor']
+    formatted_ua['os_family'] = parsed_ua['os']['family']
+    formatted_ua['os_major'] = parsed_ua['os']['major']
+    formatted_ua['os_minor'] = parsed_ua['os']['minor']
+    # default wmf_app_version is '-'
+    formatted_ua['wmf_app_version'] = '-'
+    app_ua = 'WikipediaApp/'
+
+    if app_ua in user_agent:
+        items = user_agent.split()
+        version = items[0].split("/")[1]
+        formatted_ua['wmf_app_version'] = version
+
+    # escape json so it doesn't cause problems when validating
+    # to string (per capsule definition)
+    return json.dumps(formatted_ua)
