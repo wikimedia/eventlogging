@@ -24,7 +24,8 @@ from .compat import integer_types, string_types, url_get, urisplit
 __all__ = (
     'cache_schema', 'get_schema', 'validate', 'init_schema_cache',
     'is_schema_cached', 'get_latest_schema_revision', 'CAPSULE_SCID',
-    'ERROR_SCID', 'SCHEMA_RE_PATTERN'
+    'ERROR_SCID', 'SCHEMA_RE_PATTERN', 'get_schema_cache',
+    'schema_uri_from_scid', 'get_cached_scids', 'get_cached_schema_uris'
 )
 
 # Regular expression which matches valid schema names.
@@ -37,14 +38,30 @@ SCHEMA_RE = re.compile(r'^{0}$'.format(SCHEMA_RE_PATTERN))
 SCHEMA_WIKI_API = 'https://meta.wikimedia.org/w/api.php'
 
 # Template for schema article URLs. Interpolates SCIDs.
+# This URL format is for wiki based schema repositories only.
 SCHEMA_URL_FORMAT = (
     SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2'
 )
 
-# Use this to extract schemas from a local file name
-# File names must look like:
-# my/schema/name/<revision>.yaml (e.g mediawiki/page/create/123.yaml)
-SCHEMA_URI_PATTERN = re.compile(r'([\w\-\./]+)/(\d+)(?:\.(?:json|yaml|yml))?$')
+# Use this regex to extract scids or validate
+# schema names from file paths. E.g.
+#   my/schema/name/123.yaml -> ('my/schema/name', 123)
+#   my/schema/name/123      -> ('my/schema/name', 123)
+#   my/schema/name          -> ('my/schema/name', None)
+# This is a 2 part regular expression, because there is no
+# good way to match revisionless schema_uris with a single
+# regex.  Matching uris against this pattern will return
+# groups named 'name_1', 'name_2', and 'revision'.  The
+# schema_name will either be in name_1 or name_2, but not both,
+# so you need to check both when extracting it.
+SCHEMA_URI_PATTERN = re.compile(
+    r'^(?P<name_1>[\w\-\./]+)/(?P<revision>\d+)' +
+    r'(?:\.json|\.yaml|\.yml)?$|^(?P<name_2>[\w\-\./]+)$'
+)
+
+# A schema's relative uri (not meta.wikimedia.org schema repo URL)
+# is schema_name/schema_revision
+SCHEMA_URI_FORMAT = '%s/%s'
 
 # SCID of the metadata object which wraps each capsule-style event.
 CAPSULE_SCID = ('EventCapsule', 15423246)
@@ -72,7 +89,7 @@ def init_schema_cache(schemas_path=None):
         load_local_schemas(schemas_path=schemas_path)
 
 
-def get_schema(scid, encapsulate=False):
+def get_schema(scid, encapsulate=False, remote_enabled=True):
     """
     Get schema from memory or a URL.
     """
@@ -86,7 +103,7 @@ def get_schema(scid, encapsulate=False):
         schema = schema_cache[name][revision]
 
     # Attempt to retrieve up schema its URL.
-    if not schema:
+    if not schema and remote_enabled:
         schema = retrieve_schema(scid)
         # Save the retrieved schema for later
         cache_schema(scid, schema)
@@ -118,6 +135,13 @@ def cache_schema(scid, schema):
     schema_cache[name][revision] = schema
 
     return schema
+
+
+def get_schema_cache():
+    """
+    Returns schema_cache.
+    """
+    return schema_cache
 
 
 def is_schema_cached(scid):
@@ -272,7 +296,37 @@ def url_from_scid(scid):
     return SCHEMA_URL_FORMAT % scid
 
 
-def scid_from_uri(schema_uri, base_path=None):
+def schema_uri_from_scid(scid):
+    """
+    A schema's relative uri (not meta.wikimedia.org schema repo URL)
+    is schema_name/schema_revision.
+    """
+    return SCHEMA_URI_FORMAT % scid
+
+
+def get_cached_scids():
+    """
+    Returns a list of all cached scids.
+    """
+    scids = []
+    for name, schemas in get_schema_cache().items():
+        for revision in schemas.keys():
+            scids.append((name, revision))
+    return scids
+
+
+def get_cached_schema_uris():
+    """
+    Returns a list of schema_uris of all cached schemas.""
+    """
+    return map(schema_uri_from_scid, get_cached_scids())
+
+
+def scid_from_uri(
+    schema_uri,
+    base_path=None,
+    default_to_latest_revision=False
+):
     """
     Extracts scid from uri path based on the
     SCHEMA_URI_PATTERN regex.  If uri doesn't
@@ -281,11 +335,27 @@ def scid_from_uri(schema_uri, base_path=None):
     If base_path is given, it will be removed from the path before
     attempting to match against SCHEMA_URI_PATTERN.
 
+    If default_to_latest_revision=True and no schema_revision can be
+    extracted from the schema_uri, then get_latest_schema_revision
+    will be used to return an scid with the latest schema revision.
+
+    Arguments:
+
+        *schema_uri string
+        *base_path string  Default: None
+        *default_to_latest_revision boolean Default: False
+
     Usage:
         scid_from_uri('my/schema/1.yaml')
-            -> ('my/schema/, 1)
+            -> ('my/schema, 1)
         scid_from_uri('file:///base/my/schema/1.yaml', '/base')
             -> ('my/schema', 1)
+        scid_from_uri('my/schema/1')
+            -> ('my/schema', 1)
+        scid_from_uri('my/schema')
+            -> ('my/schema', None)
+        scid_from_uri('my/schema', default_to_latest_revision=True)
+            -> ('my/schema', 10)
     """
 
     uri_path = urisplit(schema_uri).path
@@ -296,7 +366,16 @@ def scid_from_uri(schema_uri, base_path=None):
 
     match = SCHEMA_URI_PATTERN.search(uri_path)
     if match:
-        return (match.group(1).strip(os.path.sep), int(match.group(2)))
+        schema_name = match.group('name_1') or match.group('name_2')
+
+        if match.group('revision'):
+            schema_revision = int(match.group('revision'))
+        elif default_to_latest_revision:
+            schema_revision = get_latest_schema_revision(schema_name)
+        else:
+            schema_revision = None
+
+        return (schema_name.strip(os.path.sep), schema_revision)
     else:
         logging.error("Could not extract scid from %s" % schema_uri)
         return None

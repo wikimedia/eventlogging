@@ -47,6 +47,7 @@ paths:
       description: "Gets the topic configuration object"
       produces:
         - application/json
+        - application/x-yaml
       responses:
         '200':
           description: The current topic->schema mapping and configuration
@@ -58,12 +59,30 @@ paths:
     get:
       tags:
         - Schema
-      description: "Gets the cached schemas"
+      description: "Gets a list of all cached schema_uris"
       produces:
         - application/json
+        - application/x-yaml
       responses:
         '200':
-          description: The full schema cache, keyed by schema_name and then revision
+          description: A list of cached schema_uris.
+      x-amples:
+        - response:
+            status: 200
+
+  /v1/schemas/{schema_uri}:
+    get:
+      tags:
+        - Schema
+      description: >
+        Gets a schema by its URI name.  If the schema_uri does not end in a
+        revision, this will return the latest schema.
+      produces:
+        - application/json
+        - application/x-yaml
+      responses:
+        '200':
+          description: The desired schema.
       x-amples:
         - response:
             status: 200

@@ -54,7 +54,7 @@ class HttpSchemaTestCase(HttpSchemaTestMixin, unittest.TestCase):
 
 class FileSchemaTestCase(unittest.TestCase):
     def test_scid_from_uri(self):
-        """Tests that an scid can be extracted from filenames."""
+        """Tests that an scid can be extracted from filenames / URIs."""
         self.assertEqual(
             eventlogging.schema.scid_from_uri('FakeSchema/123.json'),
             ('FakeSchema', 123)
@@ -99,6 +99,14 @@ class FileSchemaTestCase(unittest.TestCase):
         self.assertEqual(
             eventlogging.schema.scid_from_uri('12345 not a schema file'),
             None
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('FakeSchema/123'),
+            ('FakeSchema', 123)
+        )
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri('FakeSchema'),
+            ('FakeSchema', None)
         )
 
 
@@ -240,33 +248,51 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
         )
 
     def test_scid_from_uri(self):
-        scid = ('TestSchema', 123)
+        scid = TEST_SCHEMA_SCID
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('TestSchema/123'),
+            eventlogging.schema.scid_from_uri('%s/%s' % scid),
             scid
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('TestSchema/123.json'),
+            eventlogging.schema.scid_from_uri('%s/%s.json' % scid),
             scid
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('TestSchema/123.yaml'),
+            eventlogging.schema.scid_from_uri('%s/%s.yaml' % scid),
             scid
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('TestSchema/123.yml'),
+            eventlogging.schema.scid_from_uri('%s/%s.yml' % scid),
             scid
         )
         self.assertEqual(
-            eventlogging.schema.scid_from_uri('http://d.org/TestSchema/123'),
+            eventlogging.schema.scid_from_uri('http://d.org/%s/%s' % scid),
             scid
         )
         self.assertEqual(
             eventlogging.schema.scid_from_uri(
-                'file:///a/b/TestSchema/123',
+                'file:///a/b/%s/%s' % scid,
                 '/a/b'
             ),
             scid
+        )
+        # Test that we can get a scid with the latest schema revision
+        # if the schema_uri doesn't have a revision, and we set
+        # default_to_latest_revision to True.
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri(
+                scid[0], default_to_latest_revision=True
+            ),
+            scid
+        )
+        # Test that we can get a scid with a revision of None
+        # if the schema_uri doesn't have a revision, and we set
+        # default_to_latest_revision to False.
+        self.assertEqual(
+            eventlogging.schema.scid_from_uri(
+                scid[0]
+            ),
+            (scid[0], None)
         )
 
     def test_is_schema_cached(self):
@@ -279,3 +305,19 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
         self.assertFalse(eventlogging.schema.is_schema_cached(
             ('NopeNope', 123)
         ))
+
+    def test_schema_uri_from_scid(self):
+        scid = TEST_SCHEMA_SCID
+        self.assertEqual(
+            eventlogging.schema.schema_uri_from_scid(scid),
+            '%s/%s' % scid
+        )
+
+    def test_get_cached_scids(self):
+        scid = TEST_SCHEMA_SCID
+        self.assertTrue(scid in eventlogging.schema.get_cached_scids())
+
+    def test_cached_schema_uris(self):
+        scid = TEST_SCHEMA_SCID
+        uri = '%s/%s' % scid
+        self.assertTrue(uri in eventlogging.schema.get_cached_schema_uris())

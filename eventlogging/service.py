@@ -25,7 +25,8 @@ from .compat import json
 from .event import create_event_error, Event
 from .factory import apply_safe, get_writer
 from .schema import (
-    cache_schema, init_schema_cache, is_schema_cached, validate, schema_cache
+    cache_schema, init_schema_cache, is_schema_cached, validate,
+    scid_from_uri, get_schema, get_cached_schema_uris
 )
 from .topic import (
     get_topic_config, init_topic_config, latest_scid_for_topic,
@@ -108,8 +109,9 @@ class EventLoggingService(tornado.web.Application):
             # GET /v1/topics
             (r"/v1/topics", TopicConfigHandler),
 
-            # GET /v1/topics
-            (r"/v1/schemas", SchemasHandler),
+            # GET /v1/schemas (or /v1/schemas/)
+            # GET /v1/schemas/:schema_uri
+            (r"/v1/schemas(?:/?|/(?P<schema_uri>.+))", SchemasHandler),
 
             # GET /?spec
             (r'[/]?', SpecHandler),
@@ -370,17 +372,79 @@ class TopicConfigHandler(
     tornado.web.RequestHandler
 ):
     def get(self):
+        # Default to returning the object as JSON,
+        # unless YAML is explicitly asked for.
+        response_content_type = get_response_content_type(self.request.headers)
+        should_write_yaml = 'yaml' in response_content_type
+
+        topic_config = get_topic_config()
+        if should_write_yaml:
+            topic_config = to_yaml(topic_config)
+
         self.set_status(200)
-        self.write(get_topic_config())
+        self.set_header('Content-Type', response_content_type)
+        self.write(topic_config)
 
 
 class SchemasHandler(
     statsd.RequestMetricsMixin,
     tornado.web.RequestHandler
 ):
-    def get(self):
-        self.set_status(200)
-        self.write(schema_cache)
+    def get(self, schema_uri=None):
+        """
+        If schema_uri is none, this will write all schemas to the client.
+        Else it will try to look up schema_uri in the schema_cache
+        and return it to the client. If not found, or if schema_uri is
+        invalid, this will return 404.
+
+        Default behavior is to write to client as JSON, unless
+        Accept header is application/x-yaml.
+
+        Arguments:
+            *schema_uri string
+        """
+        # Default to returning the object as JSON,
+        # unless YAML is explicitly asked for.
+        response_content_type = get_response_content_type(self.request.headers)
+        should_write_yaml = 'yaml' in response_content_type
+
+        # If we weren't given a specific schema_uri to look up,
+        # then return the whole schema_cache.
+        if not schema_uri:
+            schema_uris = get_cached_schema_uris()
+
+            if should_write_yaml:
+                schema_uris = to_yaml(schema_uris)
+            else:
+                # Have to manually encode as json, Tornado
+                # won't let us write lists as bodies directly.
+                schema_uris = json.dumps(schema_uris)
+
+            self.set_status(200)
+            self.set_header('Content-Type', response_content_type)
+            self.write(schema_uris)
+
+        # Else attempt to look up this schema_uri in the schema_cache.
+        else:
+            schema = None
+            try:
+                scid = scid_from_uri(
+                    schema_uri, default_to_latest_revision=True
+                )
+                if scid:
+                    schema = get_schema(scid, remote_enabled=False)
+            except (SchemaError, ValidationError):
+                pass
+
+            if schema:
+                if should_write_yaml:
+                    schema = to_yaml(schema)
+                self.set_header('Content-Type', response_content_type)
+                self.set_status(200)
+                self.write(schema)
+            else:
+                self.set_status(404)
+                self.write("No schema exists at schema_uri %s\n" % schema_uri)
 
 
 class SpecHandler(tornado.web.RequestHandler):
@@ -391,6 +455,24 @@ class SpecHandler(tornado.web.RequestHandler):
             self.write(swagger_spec)
         else:
             self.set_status(404)
+
+
+def to_yaml(o):
+    """Safe yaml dump o with default_flow_style=False."""
+    return yaml.safe_dump(o, default_flow_style=False)
+
+
+def get_response_content_type(request_headers):
+    """
+    Examines request headers and to see if the client Accepts yaml.
+    Returns the value you should use for the response Content-Type.
+    This assumes the default response is json.
+    """
+    if ('Accept' in request_headers and
+        request_headers['Accept'] in ['application/x-yaml', 'application/yaml']):
+        return 'application/x-yaml; charset=UTF-8'
+    else:
+        return 'application/json; charset=UTF-8'
 
 
 def append_spec_test_topic_and_schema(overwrite=False):

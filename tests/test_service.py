@@ -12,16 +12,20 @@ from tornado.testing import get_unused_port
 
 import eventlogging
 from eventlogging.service import (
-    EventLoggingService, swagger_spec, append_spec_test_topic_and_schema
+    EventLoggingService, swagger_spec, append_spec_test_topic_and_schema,
+    get_response_content_type
 )
-from eventlogging.schema import is_schema_cached
+from eventlogging.schema import (
+    get_schema, is_schema_cached, schema_uri_from_scid
+)
 from eventlogging.topic import schema_name_for_topic, TopicNotConfigured
 from eventlogging.event import Event
 
 import json
+import yaml
 import os
 import tempfile
-from .fixtures import SchemaTestMixin
+from .fixtures import SchemaTestMixin, TEST_META_SCHEMA_SCID
 
 
 class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
@@ -36,6 +40,24 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         application = EventLoggingService(writers, None, get_unused_port())
         return application
 
+    def test_get_response_content_type(self):
+        self.assertEqual(
+            'application/json; charset=UTF-8',
+            get_response_content_type({})
+        )
+        self.assertEqual(
+            'application/json; charset=UTF-8',
+            get_response_content_type({'Accept': 'blablabla'})
+        )
+        self.assertEqual(
+            'application/x-yaml; charset=UTF-8',
+            get_response_content_type({'Accept': 'application/yaml'})
+        )
+        self.assertEqual(
+            'application/x-yaml; charset=UTF-8',
+            get_response_content_type({'Accept': 'application/x-yaml'})
+        )
+
     def test_spec(self):
         """
         Test ?spec returns swagger spec.
@@ -44,6 +66,120 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
                                self.stop, method="GET")
         response = self.wait()
         self.assertEqual(200, response.code)
+
+        self.assertEqual
+
+    def test_schemas(self):
+        """
+        Test /v1/schemas returns a list of schema_uris
+        """
+        schema_uri = schema_uri_from_scid(TEST_META_SCHEMA_SCID)
+        self.http_client.fetch(self.get_url('/v1/schemas'),
+                               self.stop, method="GET")
+        response = self.wait()
+
+        self.assertEqual(
+            'application/json; charset=UTF-8',
+            response.headers['Content-Type']
+        )
+        self.assertEqual(200, response.code)
+        # Assert that a schema we know about is
+        # in the returned  list of schema_uris.
+        schema_uris = yaml.safe_load(response.body)
+        self.assertTrue(schema_uri in schema_uris)
+
+    def test_schemas_yaml(self):
+        """
+        Test /v1/schemas returns a list of schemas in yaml
+        """
+        schema_uri = schema_uri_from_scid(TEST_META_SCHEMA_SCID)
+
+        # Request that schemas are returned to us as a yaml string
+        headers = {'Accept': 'application/x-yaml'}
+
+        self.http_client.fetch(self.get_url('/v1/schemas'),
+                               self.stop, method="GET", headers=headers)
+        response = self.wait()
+
+        self.assertEqual(
+            'application/x-yaml; charset=UTF-8',
+            response.headers['Content-Type']
+        )
+        self.assertEqual(200, response.code)
+
+        # Assert that a schema we know about is
+        # in the returned  list of schema_uris.
+        schema_uris = yaml.safe_load(response.body)
+        self.assertTrue(schema_uri in schema_uris)
+
+    def test_schemas_with_schema_uri(self):
+        """
+        Test /v1/schemas/TestMetaSchema/1 returns the proper schema
+        """
+        schema = get_schema(TEST_META_SCHEMA_SCID)
+
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/%s/%s' % TEST_META_SCHEMA_SCID),
+            self.stop, method="GET"
+        )
+        response = self.wait()
+
+        self.assertEqual(
+            'application/json; charset=UTF-8',
+            response.headers['Content-Type']
+        )
+        self.assertEqual(200, response.code)
+
+        # assert that the schema we got is like the one in schema_cache
+        response_schema = yaml.safe_load(response.body)
+        self.assertEqual(schema['title'], response_schema['title'])
+
+    def test_schemas_with_schema_uri_yaml(self):
+        """
+        Test /v1/schemas/TestMetaSchema/1 returns the proper schema in yaml
+        """
+        schema = get_schema(TEST_META_SCHEMA_SCID)
+
+        # Request that schemas are returned to us as a yaml string
+        headers = {'Accept': 'application/x-yaml'}
+
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/%s/%s' % TEST_META_SCHEMA_SCID),
+            self.stop, method="GET", headers=headers
+        )
+        response = self.wait()
+
+        self.assertEqual(
+            'application/x-yaml; charset=UTF-8',
+            response.headers['Content-Type']
+        )
+        self.assertEqual(200, response.code)
+
+        # assert that the schema we got is like the one in schema_cache
+        response_schema = yaml.safe_load(response.body)
+        self.assertEqual(schema['title'], response_schema['title'])
+
+    def test_schemas_with_schema_uri_latest_revision(self):
+        """
+        Test /v1/schemas/TestMetaSchema returns the latest schema
+        """
+        schema = get_schema(TEST_META_SCHEMA_SCID)
+
+        self.http_client.fetch(
+            self.get_url('/v1/schemas/%s' % TEST_META_SCHEMA_SCID[0]),
+            self.stop, method="GET"
+        )
+        response = self.wait()
+
+        self.assertEqual(
+            'application/json; charset=UTF-8',
+            response.headers['Content-Type']
+        )
+        self.assertEqual(200, response.code)
+
+        # assert that the schema we got is like the one in schema_cache
+        response_schema = yaml.safe_load(response.body)
+        self.assertEqual(schema['title'], response_schema['title'])
 
     def test_event_post_spec_x_amples(self):
         """
