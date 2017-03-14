@@ -11,7 +11,6 @@ from __future__ import unicode_literals
 import datetime
 import unittest
 import uuid
-import json
 
 import eventlogging
 from eventlogging.compat import long
@@ -143,48 +142,3 @@ class UtilsTestCase(unittest.TestCase):
             'test',
             'group_id should equal test'
         )
-
-    def test_ua_parse_ios(self):
-        ios_ua = 'WikipediaApp/5.3.3.1038 (iOS 10.2; Phone)'
-        parsed = json.dumps({
-            'os_minor': '2',
-            'os_major': '10',
-            'device_family': 'Other',
-            'os_family': 'iOS',
-            'browser_major': None,
-            'browser_minor': None,
-            'browser_family': 'Other',
-            'wmf_app_version': '5.3.3.1038'
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(ios_ua)))
-
-    def test_ua_parse_android(self):
-        android_ua = 'WikipediaApp/2.4.160-r-2016-10-14 (Android 4.4.2; Phone)'
-        parsed = json.dumps({
-            'os_major': '4',
-            'wmf_app_version': '2.4.160-r-2016-10-14',
-            'os_family': 'Android',
-            'device_family': 'Generic Smartphone',
-            'browser_family': 'Android',
-            'browser_minor': '4',
-            'browser_major': '4',
-            'os_minor': '4'
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(android_ua)))
-
-    def test_ua_parse_empty(self):
-        ua = ""
-        parsed = json.dumps({
-            'os_minor': None,
-            'os_major': None,
-            'device_family': 'Other',
-            'os_family': 'Other',
-            'browser_major': None,
-            'browser_minor': None,
-            'browser_family': 'Other',
-            'wmf_app_version': '-'
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(ua)))
