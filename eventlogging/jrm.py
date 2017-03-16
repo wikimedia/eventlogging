@@ -76,7 +76,7 @@ class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
 # Maximum length for string and string-like types. Because InnoDB limits index
 # columns to 767 bytes, the maximum length for a utf8mb4 column (which
 # reserves up to four bytes per character) is 191 (191 * 4 = 764).
-STRING_MAX_LEN = 191
+STRING_MAX_LEN = 1024
 
 # Default table column definition, to be overridden by mappers below.
 COLUMN_DEFAULTS = {'type_': sqlalchemy.Unicode(STRING_MAX_LEN)}
