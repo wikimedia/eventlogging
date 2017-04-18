@@ -13,16 +13,20 @@
 """
 
 import yaml
+import re
 
 from .schema import get_latest_schema_revision
 
 __all__ = (
-    'get_topic_config', 'init_topic_config', 'latest_scid_for_topic',
+    'get_topic_config', 'is_topic_configured', 'init_topic_config', 'latest_scid_for_topic',
     'schema_allowed_in_topic', 'schema_name_for_topic', 'TopicNotConfigured',
     'TopicNotFound', 'update_topic_config'
 )
 
 topic_config = {}
+# Regex-based lookup is expensive, so we cache the result of regex lookups.
+# The dictionary contains a mapping from the topic name to the topic config object.
+topic_lookup_cache = {}
 
 
 class TopicNotConfigured(Exception):
@@ -33,6 +37,23 @@ class TopicNotFound(Exception):
     pass
 
 
+def find_topic_config_by_regex(topic):
+    """
+    Finds the topic configuration by the regex-based topic configs.
+    If 2 or more regex configs match a single topic the result would
+    be non-deterministic.
+
+    :param topic: the name of the topic
+    :return: the topic config object
+    """
+    for topic_spec_name, topic_spec in topic_config.items():
+        if re.match('^\/.+\/$', topic_spec_name) and re.match(topic_spec_name[1:-1], topic):
+            topic_lookup_cache[topic] = topic_spec
+            return topic_spec['schema_name']
+    topic_lookup_cache[topic] = False
+    return None
+
+
 def init_topic_config(config_file):
     """
     Clears topic_config and loads the topic config from a file.
@@ -40,6 +61,7 @@ def init_topic_config(config_file):
     :param config_file: Path to topic config YAML file
     """
     topic_config.clear()
+    topic_lookup_cache.clear()
 
     # Load the topic_config from the config file.
     with open(config_file) as f:
@@ -56,9 +78,23 @@ def update_topic_config(c):
 
 def get_topic_config():
     """
-    Returns topic configuration object.
+     Returns topic configuration object.
     """
     return topic_config
+
+
+def is_topic_configured(topic):
+    """
+    Returns True if the topic configuration exists.
+    """
+    if topic in topic_config \
+            or topic in topic_lookup_cache\
+            and topic_lookup_cache[topic]:
+        return True
+    elif topic in topic_lookup_cache and topic_lookup_cache[topic] is False:
+        return False
+    else:
+        return bool(find_topic_config_by_regex(topic))
 
 
 def schema_name_for_topic(topic):
@@ -68,10 +104,19 @@ def schema_name_for_topic(topic):
 
     :raises TopicNotConfigured: if topic is not in topic_config.
     """
-    if topic not in topic_config:
-        raise TopicNotConfigured("Topic %s not configured" % topic)
-
-    return topic_config[topic]['schema_name']
+    if topic in topic_config:
+        return topic_config[topic]['schema_name']
+    elif topic in topic_lookup_cache:
+        if topic_lookup_cache[topic]:
+            return topic_lookup_cache[topic]['schema_name']
+        else:
+            raise TopicNotConfigured("Topic %s not configured" % topic)
+    else:
+        conf = find_topic_config_by_regex(topic)
+        if conf:
+            return conf['schema_name']
+        else:
+            raise TopicNotConfigured("Topic %s not configured" % topic)
 
 
 def latest_scid_for_topic(topic):

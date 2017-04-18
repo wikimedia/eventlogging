@@ -29,7 +29,7 @@ from .schema import (
     scid_from_uri, get_schema, get_cached_schema_uris
 )
 from .topic import (
-    get_topic_config, init_topic_config, latest_scid_for_topic,
+    get_topic_config, is_topic_configured, init_topic_config, latest_scid_for_topic,
     schema_allowed_in_topic, schema_name_for_topic, TopicNotConfigured,
     TopicNotFound, update_topic_config
 )
@@ -491,7 +491,7 @@ def append_spec_test_topic_and_schema(overwrite=False):
     if not overwrite:
         # Error and die if someone's provided topic config or
         # schemas already have the spec test topic/schema.
-        if spec_test_topic in get_topic_config():
+        if is_topic_configured(spec_test_topic):
             raise Exception(
                 'Topic \'%s\' cannot be present in your topic config. It is '
                 'reserved for eventlogging-service swagger spec testing.' %
