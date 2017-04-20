@@ -49,7 +49,7 @@ def find_topic_config_by_regex(topic):
     for topic_spec_name, topic_spec in topic_config.items():
         if re.match('^\/.+\/$', topic_spec_name) and re.match(topic_spec_name[1:-1], topic):
             topic_lookup_cache[topic] = topic_spec
-            return topic_spec['schema_name']
+            return topic_spec
     topic_lookup_cache[topic] = False
     return None
 

@@ -87,11 +87,11 @@ class TopicTestCase(SchemaTestMixin, unittest.TestCase):
 
         eventlogging.topic.update_topic_config(test_topic_config)
 
-        self.assertTrue(eventlogging.topic.is_topic_configured('regex.topic'))
-        self.assertFalse(eventlogging.topic.is_topic_configured('bla'))
         self.assertEqual(
             eventlogging.topic.schema_name_for_topic('regex.topic'),
             'regex.schema'
         )
+        self.assertTrue(eventlogging.topic.is_topic_configured('regex.topic'))
+        self.assertFalse(eventlogging.topic.is_topic_configured('bla'))
 
 
