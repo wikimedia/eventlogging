@@ -157,8 +157,7 @@ class LogParser(object):
         event.update(event.pop('capsule'))
         event['uuid'] = capsule_uuid(event)
         if ('userAgent' in event) and event['userAgent']:
-            parsed_ua = parse_ua(event['userAgent'])
-            event['userAgent'] = parsed_ua
+            event['userAgent'] = parse_ua(event['userAgent'])
         return Event(event)
 
     def __repr__(self):

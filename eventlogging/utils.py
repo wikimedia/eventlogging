@@ -36,6 +36,22 @@ __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
            'uri_delete_query_item', 'uri_append_query_items', 'uri_force_raw',
            'parse_etcd_uri', 'datetime_from_uuid1', 'datetime_from_timestamp')
 
+# Regex extending uaparser's bot/spider detection, comes from
+# Webrequest.java in refinery-source/core
+bot_ua_pattern = re.compile('(.*(bot|spider|WordPress|AppEngine|AppleDictionar'
+                            'yService|Python-urllib|python-requests|Google-HTT'
+                            'P-Java-Client|[Ff]acebook|[Yy]ahoo|RockPeaks|http'
+                            ').*|(goo wikipedia|MediaWikiCrawler-Google|wikiwi'
+                            'x-bot|Java|curl|PHP|Faraday|HTTPC|Ruby|\.NET|Pyth'
+                            'on|Apache|Scrapy|PycURL|libwww|Zend|wget|nodemw|W'
+                            'inHttpRaw|Twisted|com\.eusoft|Lagotto|Peggo|Recuw'
+                            'eb|check_http|Magnus|MLD|Jakarta|find-link|J\. Ri'
+                            'ver|projectplan9|ADmantX|httpunit|LWP|iNaturalist'
+                            '|WikiDemo|FSResearchIt|livedoor|Microsoft Monitor'
+                            'ing|MediaWiki|User:|User_talk:|github|tools.wmfla'
+                            'bs.org|Blackboard Safeassign|Damn Small XSS|\S+@'
+                            '\S+\.[a-zA-Z]{2,3}).*)$')
+
 
 class PeriodicThread(threading.Thread):
     """Represents a threaded job that runs repeatedly at a regular interval."""
@@ -327,6 +343,8 @@ def parse_ua(user_agent):
     formatted_ua['os_minor'] = parsed_ua['os']['minor']
     # default wmf_app_version is '-'
     formatted_ua['wmf_app_version'] = '-'
+    # is request a bot/spider?
+    formatted_ua['is_bot'] = is_bot(formatted_ua['device_family'], user_agent)
     app_ua = 'WikipediaApp/'
 
     if app_ua in user_agent:
@@ -337,3 +355,16 @@ def parse_ua(user_agent):
     # escape json so it doesn't cause problems when validating
     # to string (per capsule definition)
     return json.dumps(formatted_ua)
+
+
+def is_bot(device_family, user_agent):
+    """
+    Tests the raw user agent string against a bot regular expression
+    if uaparser isn't already marking it as a spider
+    """
+    if device_family == 'Spider':
+        return True
+    elif device_family == 'Other':
+        ua_string = user_agent.strip('"')
+        return bool(bot_ua_pattern.match(ua_string))
+    return False

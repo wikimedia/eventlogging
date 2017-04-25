@@ -154,7 +154,8 @@ class UtilsTestCase(unittest.TestCase):
             'browser_major': None,
             'browser_minor': None,
             'browser_family': 'Other',
-            'wmf_app_version': '5.3.3.1038'
+            'wmf_app_version': '5.3.3.1038',
+            'is_bot': False
         })
         self.assertEqual(json.loads(parsed),
                          json.loads(eventlogging.utils.parse_ua(ios_ua)))
@@ -169,7 +170,8 @@ class UtilsTestCase(unittest.TestCase):
             'browser_family': 'Android',
             'browser_minor': '4',
             'browser_major': '4',
-            'os_minor': '4'
+            'os_minor': '4',
+            'is_bot': False
         })
         self.assertEqual(json.loads(parsed),
                          json.loads(eventlogging.utils.parse_ua(android_ua)))
@@ -184,7 +186,8 @@ class UtilsTestCase(unittest.TestCase):
             'browser_major': None,
             'browser_minor': None,
             'browser_family': 'Other',
-            'wmf_app_version': '-'
+            'wmf_app_version': '-',
+            'is_bot': False
         })
         self.assertEqual(json.loads(parsed),
                          json.loads(eventlogging.utils.parse_ua(ua)))

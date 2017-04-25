@@ -50,7 +50,8 @@ class LogParserTestCase(unittest.TestCase):
                 'browser_major': '10',
                 'browser_minor': '0',
                 'browser_family': 'Firefox',
-                'wmf_app_version': '-'
+                'wmf_app_version': '-',
+                'is_bot': False
             })
         parsed = {
             'uuid': '799341a01ba957c79b15dc4d2d950864',
@@ -97,6 +98,39 @@ class LogParserTestCase(unittest.TestCase):
             }
         }
         self.assertEqual(parser.parse(raw), parsed)
+
+    def test_parser_bot_requests(self):
+        parser = eventlogging.LogParser(
+            '%q %{recvFrom}s %{seqId}d %t %o %{userAgent}i')
+        # Bot - recognised by uaparser
+        raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
+               '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
+               '2%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizondo%22%7'
+               'D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp3022.esa'
+               'ms.wikimedia.org 132073 2013-01-19T23:16:38 - '
+               'AppEngine-Google; (+http://code.google.com/appengine; appid'
+               ': webetrex)')
+        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        self.assertEqual(ua_map['is_bot'], True)
+        # Bot - not recognised by uaparser
+        raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22G'
+               'eneric%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22artic'
+               'leId%22%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizond'
+               'o%22%7D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp30'
+               '22.esams.wikimedia.org 132073 2013-01-19T23:16:38 - '
+               'WikiDemo/10.2.0;')
+        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        self.assertEqual(ua_map['is_bot'], True)
+        # Regular browser
+        raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22'
+               'Generic%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22arti'
+               'cleId%22%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizon'
+               'do%22%7D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp3'
+               '022.esams.wikimedia.org 132073 2013-01-19T23:16:38 - '
+               'Mozilla/5.0 (X11; Linux x86_64; rv:10.0)'
+               ' Gecko/20100101 Firefox/10.0')
+        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        self.assertEqual(ua_map['is_bot'], False)
 
     def test_parse_failure(self):
         """Parse failure raises ValueError exception."""

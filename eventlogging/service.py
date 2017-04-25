@@ -468,8 +468,9 @@ def get_response_content_type(request_headers):
     Returns the value you should use for the response Content-Type.
     This assumes the default response is json.
     """
+    headers = ['application/x-yaml', 'application/yaml']
     if ('Accept' in request_headers and
-        request_headers['Accept'] in ['application/x-yaml', 'application/yaml']):
+            request_headers['Accept'] in headers):
         return 'application/x-yaml; charset=UTF-8'
     else:
         return 'application/json; charset=UTF-8'
