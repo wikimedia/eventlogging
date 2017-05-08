@@ -18,14 +18,16 @@ import re
 from .schema import get_latest_schema_revision
 
 __all__ = (
-    'get_topic_config', 'is_topic_configured', 'init_topic_config', 'latest_scid_for_topic',
-    'schema_allowed_in_topic', 'schema_name_for_topic', 'TopicNotConfigured',
+    'get_topic_config', 'is_topic_configured', 'init_topic_config',
+    'latest_scid_for_topic', 'schema_allowed_in_topic',
+    'schema_name_for_topic', 'TopicNotConfigured',
     'TopicNotFound', 'update_topic_config'
 )
 
 topic_config = {}
 # Regex-based lookup is expensive, so we cache the result of regex lookups.
-# The dictionary contains a mapping from the topic name to the topic config object.
+# The dictionary contains a mapping from the topic name to the
+# topic config object.
 topic_lookup_cache = {}
 
 
@@ -47,7 +49,11 @@ def find_topic_config_by_regex(topic):
     :return: the topic config object
     """
     for topic_spec_name, topic_spec in topic_config.items():
-        if re.match('^\/.+\/$', topic_spec_name) and re.match(topic_spec_name[1:-1], topic):
+        if re.match(
+                '^\/.+\/$', topic_spec_name
+            ) and re.match(
+                topic_spec_name[1:-1], topic):
+
             topic_lookup_cache[topic] = topic_spec
             return topic_spec
     topic_lookup_cache[topic] = False

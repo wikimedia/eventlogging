@@ -27,7 +27,7 @@ import traceback
 
 from .compat import items, json
 from .event import Event
-from .factory import writes, reads
+from .factory import writes, reads, get_reader
 from .streams import stream, pub_socket, sub_socket, udp_socket
 from .jrm import store_sql_events
 from .topic import TopicNotFound
@@ -39,6 +39,7 @@ __all__ = ('load_plugins',)
 # 'EVENTLOGGING_PLUGIN_DIR' environment variable if it is defined. If it is
 # not defined, EventLogging will default to the value specified below.
 DEFAULT_PLUGIN_DIR = '/usr/local/lib/eventlogging'
+plugin_modules = []
 
 
 def load_plugins(path=None):
@@ -46,8 +47,31 @@ def load_plugins(path=None):
     to prevent clobbering modules in the Python module search path."""
     if path is None:
         path = os.environ.get('EVENTLOGGING_PLUGIN_DIR', DEFAULT_PLUGIN_DIR)
-    for plugin in glob.glob(os.path.join(path, '*.py')):
-        imp.load_source('__eventlogging_plugin_%x__' % hash(plugin), plugin)
+    for plugin_path in glob.glob(os.path.join(path, '*.py')):
+        # The name of the plugin module is the name of its file without .py
+        plugin_name = plugin_path.split('/')[-1].replace('.py', '')
+        module = imp.load_source('__eventlogging_plugin_%s__' % plugin_name,
+                                 plugin_path)
+        plugin_modules.append(module)
+
+
+def find_function(function_name):
+    """
+    Looks for a specified filtering function, by first importing the functions'
+    source from the filters module, and then getting the function from the
+    local scope.
+
+    Arguments:
+        *function_name (str): name of the function specified in url params
+    """
+    for module in plugin_modules:
+        from module import *  # NOQA
+    possibles = globals().copy()
+    possibles.update(locals())
+    function = possibles.get(function_name)
+    if not function:
+        raise NotImplementedError("Function %s not implemented" % function)
+    return function
 
 
 #
@@ -590,6 +614,23 @@ def zeromq_subscriber(uri, identity=None, subscribe='', raw=False):
 def udp_reader(hostname, port, raw=False):
     """Reads data from a UDP socket."""
     return stream(udp_socket(hostname, port), raw)
+
+
+@reads('filter')
+def filtered_reader(uri, function):
+    """
+    Receives events and runs a filtering function on them.
+    The filtering function is specified in the url's parameters.
+
+    Arguments:
+        *uri: a reader uri, with a custom "filter" scheme, e.g.
+            filter://{kafka_uri}?function={filter_function}
+        *function (str): name of the filtering function as given by the
+            url's parameters
+    """
+    filter_function = find_function(function)
+    reader_uri = uri.replace("filter://", "")
+    return (e for e in get_reader(reader_uri) if filter_function(e))
 
 
 # Can be addressed as default kafka:// handler, and as specific

@@ -29,9 +29,9 @@ from .schema import (
     scid_from_uri, get_schema, get_cached_schema_uris
 )
 from .topic import (
-    get_topic_config, is_topic_configured, init_topic_config, latest_scid_for_topic,
-    schema_allowed_in_topic, schema_name_for_topic, TopicNotConfigured,
-    TopicNotFound, update_topic_config
+    get_topic_config, is_topic_configured, init_topic_config,
+    latest_scid_for_topic, schema_allowed_in_topic, schema_name_for_topic,
+    TopicNotConfigured, TopicNotFound, update_topic_config
 )
 
 
