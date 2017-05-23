@@ -39,7 +39,7 @@ __all__ = ('load_plugins',)
 # 'EVENTLOGGING_PLUGIN_DIR' environment variable if it is defined. If it is
 # not defined, EventLogging will default to the value specified below.
 DEFAULT_PLUGIN_DIR = '/usr/local/lib/eventlogging'
-plugin_modules = []
+plugin_functions = {}
 
 
 def load_plugins(path=None):
@@ -52,25 +52,27 @@ def load_plugins(path=None):
         plugin_name = plugin_path.split('/')[-1].replace('.py', '')
         module = imp.load_source('__eventlogging_plugin_%s__' % plugin_name,
                                  plugin_path)
-        plugin_modules.append(module)
+        functions = [t[0] for t in inspect.getmembers(module,
+                                                      inspect.isfunction)]
+        for f in functions:
+            if (f not in plugin_functions):
+                plugin_functions[f] = module.__dict__[f]
+            else:
+                raise ValueError('Function %s already \
+                                 defined by another plugin' % f)
 
 
 def find_function(function_name):
     """
-    Looks for a specified filtering function, by first importing the functions'
-    source from the filters module, and then getting the function from the
-    local scope.
+    Looks for the specified function, coming from a consumer's url parameter,
+    in the functions object loaded on initialization of this module.
 
     Arguments:
         *function_name (str): name of the function specified in url params
     """
-    for module in plugin_modules:
-        from module import *  # NOQA
-    possibles = globals().copy()
-    possibles.update(locals())
-    function = possibles.get(function_name)
+    function = plugin_functions.get(function_name)
     if not function:
-        raise NotImplementedError("Function %s not implemented" % function)
+        raise NotImplementedError('Function %s not implemented' % function_name)
     return function
 
 
