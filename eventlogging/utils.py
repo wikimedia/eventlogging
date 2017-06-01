@@ -345,6 +345,8 @@ def parse_ua(user_agent):
     formatted_ua['wmf_app_version'] = '-'
     # is request a bot/spider?
     formatted_ua['is_bot'] = is_bot(formatted_ua['device_family'], user_agent)
+    # does the request come from MediaWiki?
+    formatted_ua['is_mediawiki'] = is_mediawiki(user_agent)
     app_ua = 'WikipediaApp/'
 
     if app_ua in user_agent:
@@ -368,3 +370,14 @@ def is_bot(device_family, user_agent):
         ua_string = user_agent.strip('"')
         return bool(bot_ua_pattern.match(ua_string))
     return False
+
+
+def is_mediawiki(user_agent):
+    """
+    Checks if the user_agent comes from a MediaWiki backend, in order
+    to properly tag it
+    """
+    ua_string = user_agent.strip('"')
+    mw_pattern = re.compile('.*MediaWiki.*')
+    print mw_pattern.match(ua_string)
+    return bool(mw_pattern.match(ua_string))

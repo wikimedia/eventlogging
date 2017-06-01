@@ -51,7 +51,8 @@ class LogParserTestCase(unittest.TestCase):
                 'browser_minor': '0',
                 'browser_family': 'Firefox',
                 'wmf_app_version': '-',
-                'is_bot': False
+                'is_bot': False,
+                'is_mediawiki': False
             })
         parsed = {
             'uuid': '799341a01ba957c79b15dc4d2d950864',
