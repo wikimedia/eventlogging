@@ -59,6 +59,12 @@ class PluginTestCase(unittest.TestCase):
         """Determine path to mock plugin directory."""
         script_path = os.path.dirname(os.path.abspath(__file__))
         self.plugin_path = os.path.join(script_path, 'plugins')
+        # clear the plugins that might have been loaded by other tests
+        eventlogging.handlers.plugin_functions = {}
+
+    def tearDown(self):
+        # clear the plugins that might have been loaded by these tests
+        eventlogging.handlers.plugin_functions = {}
 
     def test_load_plugins(self):
         """`get_plugins` loads plug-ins from an arbitrary path."""
