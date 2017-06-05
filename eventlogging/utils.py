@@ -377,4 +377,4 @@ def is_mediawiki(user_agent):
     Checks if the user_agent comes from a MediaWiki backend, in order
     to properly tag it
     """
-    return 'mediawiki' in user_agent.lower();
+    return 'mediawiki' in user_agent.lower()
