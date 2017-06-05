@@ -377,7 +377,4 @@ def is_mediawiki(user_agent):
     Checks if the user_agent comes from a MediaWiki backend, in order
     to properly tag it
     """
-    ua_string = user_agent.strip('"')
-    mw_pattern = re.compile('.*MediaWiki.*')
-    print mw_pattern.match(ua_string)
-    return bool(mw_pattern.match(ua_string))
+    return 'mediawiki' in user_agent.lower();
