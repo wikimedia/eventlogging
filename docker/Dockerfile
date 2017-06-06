@@ -23,7 +23,9 @@ RUN set -x; \
   python-statsd         \
   python-tornado        \
   python-sprockets-mixins-statsd \
-  python-yaml
+  python-yaml           \
+  python-psutil         \
+  python-ua-parser
 
 RUN set -x; \
   mkdir -p /usr/src \
