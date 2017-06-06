@@ -1,14 +1,14 @@
 FROM wikimedia/eventlogging
 
-COPY topics.yaml /etc/topics.yaml
+RUN git clone https://gerrit.wikimedia.org/r/p/mediawiki/event-schemas /etc/event-schemas
 
-ENTRYPOINT [                                            \
-  "/usr/bin/python",                                    \
-  "-OO",                                                \
-  "/usr/src/eventlogging/bin/eventlogging-service",     \
-  "--topic-config",                                     \
-  "/etc/topics.yaml",                                   \
-  "--schemas-path",                                     \
-  "/usr/src/eventlogging/config/schemas/jsonschema"     \
+ENTRYPOINT [                                        \
+  "/usr/bin/python",                                \
+  "-OO",                                            \
+  "/usr/src/eventlogging/bin/eventlogging-service", \
+  "--topic-config",                                 \
+  "/etc/event-schemas/config/eventbus-topics.yaml", \
+  "--schemas-path",                                 \
+  "/etc/event-schemas/jsonschema"                   \
 ]
 CMD ["stdout://"]
