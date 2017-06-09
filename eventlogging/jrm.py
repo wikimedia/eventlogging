@@ -15,10 +15,11 @@ import itertools
 import logging
 import _mysql
 import os
+import re
 import sqlalchemy
 import time
 
-from .compat import items
+from .compat import items, json
 from .schema import get_schema
 from .utils import flatten
 
@@ -30,9 +31,15 @@ __all__ = ('store_sql_events',)
 # timestamps. See `<https://www.mediawiki.org/wiki/Manual:Timestamp>`_.
 MEDIAWIKI_TIMESTAMP = '%Y%m%d%H%M%S'
 
-# Format string for table names. Interpolates a `SCID` -- i.e., a tuple
-# of (schema_name, revision_id).
-TABLE_NAME_FORMAT = '%s_%s'
+
+
+def scid_to_table_name(scid):
+    """Convert an scid to a SQL table name."""
+    return '{}_{}'.format(
+        re.sub('[^A-Za-z0-9]+', '_', scid[0]),
+        scid[1]
+    )
+
 
 # An iterable of properties that should not be stored in the database.
 NO_DB_PROPERTIES = (
@@ -48,6 +55,14 @@ ENGINE_TABLE_OPTIONS = {
         )
     }
 }
+
+# Maximum length for string and string-like types. Because InnoDB limits index
+# columns to 767 bytes, the maximum length for a utf8mb4 column (which
+# reserves up to four bytes per character) is 191 (191 * 4 = 764).
+STRING_MAX_LEN = 1024
+
+# Default table column definition, to be overridden by mappers below.
+COLUMN_DEFAULTS = {'type_': sqlalchemy.Unicode(STRING_MAX_LEN)}
 
 
 class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
@@ -73,13 +88,22 @@ class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
         return datetime.datetime.strptime(value, MEDIAWIKI_TIMESTAMP)
 
 
-# Maximum length for string and string-like types. Because InnoDB limits index
-# columns to 767 bytes, the maximum length for a utf8mb4 column (which
-# reserves up to four bytes per character) is 191 (191 * 4 = 764).
-STRING_MAX_LEN = 1024
+class JsonSerde(sqlalchemy.TypeDecorator):
+    """A :class:`sqlalchemy.TypeDecorator` for converting to and from JSON strings."""
 
-# Default table column definition, to be overridden by mappers below.
-COLUMN_DEFAULTS = {'type_': sqlalchemy.Unicode(STRING_MAX_LEN)}
+    impl = sqlalchemy.Unicode(STRING_MAX_LEN)
+
+    def process_bind_param(self, value, dialect=None):
+        """Convert the value to a JSON string"""
+        value = json.dumps(value)
+        if hasattr(value, 'decode'):
+            value = value.decode('utf-8')
+        return value
+
+    def process_result_value(self, value, dialect=None):
+        """Convert a JSON string into a Python object"""
+        return json.loads(value)
+
 
 # Mapping of JSON Schema attributes to valid values. Each value maps to
 # a dictionary of options. The options are compounded into a single
@@ -97,6 +121,8 @@ mappers = collections.OrderedDict((
         'integer': {'type_': sqlalchemy.BigInteger},
         'number': {'type_': sqlalchemy.Float},
         'string': {'type_': sqlalchemy.Unicode(STRING_MAX_LEN)},
+        # Encode arrays as JSON strings.
+        'array': {'type_': JsonSerde},
     }),
     ('format', {
         'utc-millisec': {'type_': MediaWikiTimestamp, 'index': True},
@@ -152,8 +178,9 @@ def get_table(meta, scid, should_encapsulate=True):
     #       |                 |         +-------------+------------+
     #       +-----------------+-------->| Return table description |
     #                                   +--------------------------+
+    table_name = scid_to_table_name(scid)
     try:
-        return meta.tables[TABLE_NAME_FORMAT % scid]
+        return meta.tables[table_name]
     except KeyError:
         return declare_table(meta, scid, should_encapsulate)
 
@@ -166,7 +193,7 @@ def declare_table(meta, scid, should_encapsulate=True):
     columns = schema_mapper(schema)
 
     table_options = ENGINE_TABLE_OPTIONS.get(meta.bind.name, {})
-    table_name = TABLE_NAME_FORMAT % scid
+    table_name = scid_to_table_name(scid)
 
     table = sqlalchemy.Table(table_name, meta, *columns, **table_options)
     table.create(checkfirst=True)

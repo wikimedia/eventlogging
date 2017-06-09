@@ -149,6 +149,12 @@ _schemas = {
                     'type': 'string',
                     'required': True
                 },
+                'list': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    }
+                },
                 'nested': {
                     'type': 'object',
                     'properties': {
@@ -202,6 +208,7 @@ _schemas = {
 _event = {
     'event': {
         'value': '☆ 彡',
+        'list': ['a','☆ 彡'],
         'nested': {
             'deeplyNested': {
                 'pi': 3.14159

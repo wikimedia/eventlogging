@@ -31,7 +31,6 @@ import logging
 
 import eventlogging
 
-
 eventlogging.setup_logging()
 
 ap = argparse.ArgumentParser(description='EventLogger',
@@ -40,11 +39,19 @@ ap.add_argument('input', help='URI of raw input stream')
 ap.add_argument('output', help='URI of output stream', default='stdout://')
 ap.add_argument('--no-plugins', help='run without loading plug-ins',
                 action='store_false', dest='load_plugins')
+
+ap.add_argument(
+    '--schemas-path',
+    help='Path to local schema repository',
+)
 ap.set_defaults(load_plugins=True)
 args = ap.parse_args()
 
 if args.load_plugins:
     eventlogging.load_plugins()
+
+if args.schemas_path:
+    eventlogging.schema.load_local_schemas(args.schemas_path)
 
 logging.info('Driving %s -> %s..', args.input, args.output)
 eventlogging.drive(args.input, args.output)

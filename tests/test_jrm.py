@@ -19,7 +19,7 @@ import sqlalchemy.sql
 from .fixtures import (
     DatabaseTestMixin, TEST_SCHEMA_SCID, TEST_META_SCHEMA_SCID
 )
-from eventlogging.jrm import TABLE_NAME_FORMAT
+from eventlogging.jrm import scid_to_table_name
 
 
 class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
@@ -31,7 +31,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         table generated."""
         eventlogging.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, [self.event])
-        table_name = TABLE_NAME_FORMAT % TEST_SCHEMA_SCID
+        table_name = scid_to_table_name(TEST_SCHEMA_SCID)
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
@@ -47,7 +47,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         suitable table generated."""
         eventlogging.store_sql_events(
             self.meta, TEST_META_SCHEMA_SCID, [self.event_with_meta])
-        table_name = TABLE_NAME_FORMAT % TEST_META_SCHEMA_SCID
+        table_name = scid_to_table_name(TEST_META_SCHEMA_SCID)
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
@@ -79,12 +79,13 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         self.assertEqual(flat['event_nested_deeplyNested_pi'], 3.14159)
 
     def test_encoding(self):
-        """Timestamps and unicode strings are correctly encoded."""
+        """Timestamps, unicode strings, and arrays are correctly encoded."""
         eventlogging.jrm.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, [self.event])
         table = eventlogging.jrm.get_table(self.meta, TEST_SCHEMA_SCID)
         row = table.select().execute().fetchone()
         self.assertEqual(row['event_value'], '☆ 彡')
+        self.assertEqual(row['event_list'], ['a', '☆ 彡'])
         self.assertEqual(row['uuid'], 'babb66f34a0a5de3be0c6513088be33e')
         self.assertEqual(
             row['timestamp'],
