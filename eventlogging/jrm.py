@@ -130,7 +130,13 @@ mappers = collections.OrderedDict((
                       'unique': True},
     }),
     ('required', {
-        True: {'nullable': False},
+        # Note that required=true makes the column nullable anyway.
+        # This is made so, to allow for partial purging of a schema,
+        # to follow the data retention guidelines. See:
+        # EventLogging/Data_retention_and_auto-purging in wikitech.
+        # Still, the eventlogging_processor, will verify that the
+        # required field is present, or discard the event otherwise.
+        True: {'nullable': True},
         False: {'nullable': True}
     })
 ))
