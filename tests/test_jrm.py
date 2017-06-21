@@ -19,7 +19,7 @@ import sqlalchemy.sql
 from .fixtures import (
     DatabaseTestMixin, TEST_SCHEMA_SCID, TEST_META_SCHEMA_SCID
 )
-from eventlogging.jrm import scid_to_table_name
+from eventlogging.jrm import event_to_table_name
 
 
 class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
@@ -31,7 +31,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         table generated."""
         eventlogging.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, [self.event])
-        table_name = scid_to_table_name(TEST_SCHEMA_SCID)
+        table_name = event_to_table_name(self.event)
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
@@ -47,7 +47,7 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         suitable table generated."""
         eventlogging.store_sql_events(
             self.meta, TEST_META_SCHEMA_SCID, [self.event_with_meta])
-        table_name = scid_to_table_name(TEST_META_SCHEMA_SCID)
+        table_name = event_to_table_name(self.event_with_meta)
         self.assertIn(table_name, self.meta.tables)
         table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
@@ -59,7 +59,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
 
     def test_column_names(self):
         """Generated tables contain columns for each relevant field."""
-        t = eventlogging.jrm.declare_table(self.meta, TEST_SCHEMA_SCID)
+        table_name = event_to_table_name(self.event)
+        t = eventlogging.jrm.declare_table(self.meta, TEST_SCHEMA_SCID, table_name)
 
         # The columns we expect to see are..
         cols = set(eventlogging.utils.flatten(self.event))  # all properties
@@ -69,7 +70,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
 
     def test_index_creation(self):
         """The ``timestamp`` column is indexed by default."""
-        t = eventlogging.jrm.declare_table(self.meta, TEST_SCHEMA_SCID)
+        table_name = event_to_table_name(self.event)
+        t = eventlogging.jrm.declare_table(self.meta, TEST_SCHEMA_SCID, table_name)
         cols = {column.name for index in t.indexes for column in index.columns}
         self.assertIn('timestamp', cols)
 
@@ -82,7 +84,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         """Timestamps, unicode strings, and arrays are correctly encoded."""
         eventlogging.jrm.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, [self.event])
-        table = eventlogging.jrm.get_table(self.meta, TEST_SCHEMA_SCID)
+        table_name = event_to_table_name(self.event)
+        table = eventlogging.jrm.get_table(self.meta, TEST_SCHEMA_SCID, table_name)
         row = table.select().execute().fetchone()
         self.assertEqual(row['event_value'], '☆ 彡')
         self.assertEqual(row['event_list'], ['a', '☆ 彡'])
@@ -103,17 +106,18 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         # not altered by this operation.
         del self.meta
         self.meta = sqlalchemy.MetaData(bind=self.engine)
+        table_name = event_to_table_name(self.event)
 
         # Although ``TestSchema_123`` exists in the database, SQLAlchemy
         # is not yet aware of its existence:
-        self.assertNotIn('TestSchema_123', self.meta.tables)
+        self.assertNotIn(table_name, self.meta.tables)
 
         # The ``checkfirst`` arg to :func:`sqlalchemy.Table.create`
         # will ensure that we don't attempt to CREATE TABLE on the
         # already-existing table:
         eventlogging.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, [self.event], True)
-        self.assertIn('TestSchema_123', self.meta.tables)
+        self.assertIn(table_name, self.meta.tables)
 
     def test_happy_case_insert_more_than_one_event(self):
         """Insert more than one event on database using batch_write"""
@@ -121,7 +125,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         event_list = [another_event, self.event]
         eventlogging.store_sql_events(
             self.meta, TEST_SCHEMA_SCID, event_list)
-        table = self.meta.tables['TestSchema_123']
+        table_name = event_to_table_name(self.event)
+        table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
         s = sqlalchemy.sql.select([table])
         results = self.engine.execute(s)
@@ -144,7 +149,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
             self.meta, TEST_SCHEMA_SCID, event_list, replace=True)
 
         # we should still have to insert the other record though
-        table = self.meta.tables['TestSchema_123']
+        table_name = event_to_table_name(self.event)
+        table = self.meta.tables[table_name]
         s = sqlalchemy.sql.select([table])
         results = self.engine.execute(s)
         rows = results.fetchall()
@@ -181,7 +187,8 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         # ensure both events get inserted?
         event_list = [another_event, self.event]
         eventlogging.store_sql_events(self.meta, TEST_SCHEMA_SCID, event_list)
-        table = self.meta.tables['TestSchema_123']
+        table_name = event_to_table_name(self.event)
+        table = self.meta.tables[table_name]
         # is the table on the db  and does it have the right data?
         s = sqlalchemy.sql.select([table])
         results = self.engine.execute(s)

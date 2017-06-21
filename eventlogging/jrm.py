@@ -21,6 +21,7 @@ import time
 
 from .compat import items, json
 from .schema import get_schema
+from .topic import TopicNotFound
 from .utils import flatten
 
 
@@ -32,13 +33,29 @@ __all__ = ('store_sql_events',)
 MEDIAWIKI_TIMESTAMP = '%Y%m%d%H%M%S'
 
 
+def event_to_table_name(event, with_schema_revision=True):
+    """
+    Returns the table name that should be used for this event.  This starts
+    by attempting to use the event's topic if it has one, otherwise
+    it will just use the event's schema name..  E.g.
 
-def scid_to_table_name(scid):
-    """Convert an scid to a SQL table name."""
-    return '{}_{}'.format(
-        re.sub('[^A-Za-z0-9]+', '_', scid[0]),
-        scid[1]
-    )
+    topic_name_1, schema_name_1235, etc.
+
+    :param Event                event
+    :param with_schema_revision If True, schema revision will be
+                                appended to name.  Default: True
+    """
+    try:
+        name = event.topic()
+    except TopicNotFound:
+        name = event.schema_name()
+
+    table_name = re.sub('[^A-Za-z0-9]+', '_', name),
+    if with_schema_revision:
+        return '{}_{}'.format(table_name, event.schema_revision())
+    else:
+        return table_name
+
 
 
 # An iterable of properties that should not be stored in the database.
@@ -152,7 +169,7 @@ def typecast(property):
     return sqlalchemy.Column(**options)
 
 
-def get_table(meta, scid, should_encapsulate=True):
+def get_table(meta, scid, table_name, should_encapsulate=True):
     """Acquire a :class:`sqlalchemy.schema.Table` object for a JSON
     Schema specified by `scid`."""
     #  +---------------------------------+
@@ -184,14 +201,13 @@ def get_table(meta, scid, should_encapsulate=True):
     #       |                 |         +-------------+------------+
     #       +-----------------+-------->| Return table description |
     #                                   +--------------------------+
-    table_name = scid_to_table_name(scid)
     try:
         return meta.tables[table_name]
     except KeyError:
-        return declare_table(meta, scid, should_encapsulate)
+        return declare_table(meta, scid, table_name, should_encapsulate)
 
 
-def declare_table(meta, scid, should_encapsulate=True):
+def declare_table(meta, scid, table_name, should_encapsulate=True):
     """Map a JSON schema to a SQL table. If the table does not exist in
     the database, issue ``CREATE TABLE`` statement."""
     schema = get_schema(scid, encapsulate=should_encapsulate)
@@ -199,7 +215,6 @@ def declare_table(meta, scid, should_encapsulate=True):
     columns = schema_mapper(schema)
 
     table_options = ENGINE_TABLE_OPTIONS.get(meta.bind.name, {})
-    table_name = scid_to_table_name(scid)
 
     table = sqlalchemy.Table(table_name, meta, *columns, **table_options)
     table.create(checkfirst=True)
@@ -275,10 +290,11 @@ def store_sql_events(meta, scid, scid_events, replace=False):
         insert = _insert_sequential
 
     # Each event here should be the same schema, so we can
-    # check if the first event should be encapsulated
-    # and use that when constructing the create table
-    # statement in declare_table.
+    # check if the first event should be encapsulated and also
+    # use it to construct a table name to use that when constructing
+    # the create table statement in declare_table.
     should_encapsulate = scid_events[0].should_encapsulate()
+    table_name = event_to_table_name(scid_events[0])
 
     prepared_events = [prepare(e) for e in scid_events]
     # TODO: Avoid breaking the inserts down by same set of fields,
@@ -286,7 +302,7 @@ def store_sql_events(meta, scid, scid_events, replace=False):
     prepared_events.sort(key=insert_sort_key)
     for _, grouper in itertools.groupby(prepared_events, insert_sort_key):
         events = list(grouper)
-        table = get_table(meta, scid, should_encapsulate)
+        table = get_table(meta, scid, table_name, should_encapsulate)
 
         insert_started_at = time.time()
         insert(table, events, replace)
