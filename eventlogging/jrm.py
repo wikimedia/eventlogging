@@ -50,7 +50,7 @@ def event_to_table_name(event, with_schema_revision=True):
     except TopicNotFound:
         name = event.schema_name()
 
-    table_name = re.sub('[^A-Za-z0-9]+', '_', name),
+    table_name = re.sub('[^A-Za-z0-9]+', '_', name)
     if with_schema_revision:
         return '{}_{}'.format(table_name, event.schema_revision())
     else:
