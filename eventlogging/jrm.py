@@ -314,8 +314,8 @@ def store_sql_events(meta, scid, scid_events, replace=False):
         # anywhere. This means that if the following line is reached,
         # len(events) events have been inserted, so we can log it.
         logger.info(
-            'Inserted %d %s_%s events in %f seconds',
-            len(events), scid[0], scid[1], insert_time_taken
+            'Inserted %d %s events in %f seconds',
+            len(events), table_name, insert_time_taken
         )
 
 
