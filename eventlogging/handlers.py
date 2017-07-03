@@ -480,21 +480,26 @@ def sql_writer(
             event = (yield)
             # Group the event stream by schema (and revision)
             scid = event.scid()
-            scid_events, first_timestamp = events[scid]
-            scid_events.append(event)
+            try:
+                topic = event.topic()
+            except TopicNotFound:
+                topic = None
+            batch_key = (scid, topic)
+            batch_events, first_timestamp = events[batch_key]
+            batch_events.append(event)
             # Whenever the batch reaches
             # the size specified by batch_size or it hasn't received events
             # for more than batch_time seconds it is flushed into mysql.
-            if (len(scid_events) >= batch_size or
+            if (len(batch_events) >= batch_size or
                     time.time() - first_timestamp >= batch_time):
                 try:
-                    store_sql_events(meta, scid, scid_events, replace=replace)
+                    store_sql_events(meta, scid, batch_events, replace=replace)
                 except jsonschema.SchemaError as e:
                     logger.error(e.message)
                 else:
                     if stats:
-                        stats.incr('overall.inserted', len(scid_events))
-                del events[scid]
+                        stats.incr('overall.inserted', len(batch_events))
+                del events[batch_key]
     except Exception:
         t = traceback.format_exc()
         logger.warn('Exception caught %s', t)
@@ -502,14 +507,15 @@ def sql_writer(
     finally:
         # If there are any batched events remaining,
         # process them before exiting.
-        for scid, (scid_events, _) in events.iteritems():
+        for batch_key, (batch_events, _) in events.iteritems():
+            scid = batch_key[0]
             try:
-                store_sql_events(meta, scid, scid_events, replace=replace)
+                store_sql_events(meta, scid, batch_events, replace=replace)
             except jsonschema.SchemaError as e:
                 logger.error(e.message)
             else:
                 if stats:
-                    stats.incr('overall.inserted', len(scid_events))
+                    stats.incr('overall.inserted', len(batch_events))
         logger.info(
             'Finally finished inserting remaining events '
             'before exiting sql handler.'
