@@ -10,11 +10,13 @@ from __future__ import unicode_literals
 
 import os
 import unittest
+from mock import patch, Mock, MagicMock
 
 import eventlogging
 import eventlogging.handlers
 import eventlogging.factory
 
+from .fixtures import _get_event
 
 def echo_writer(uri, **kwargs):
     values = []
@@ -50,6 +52,59 @@ class HandlerFactoryTestCase(unittest.TestCase):
         """``get_reader`` returns the right generator for the URI scheme."""
         reader = eventlogging.get_reader('test://localhost/?value=secret')
         self.assertEqual(next(reader), 'secret')
+
+class SQLHandlerTestCase(unittest.TestCase):
+
+    def test_sql_batching_happy_case_same_schema(self):
+        """
+        Send several events that will get batched together
+        as they belong to the same schema
+        """
+
+        # Patching works in teh scope of the function
+        @patch('eventlogging.handlers.store_sql_events')
+        def mock_holder(mock_store_sql_events):
+
+            writer = eventlogging.get_writer('sqlite://?batch_size=3&batch_time=100000')
+            event = _get_event().next()
+
+            writer.send(event)
+            writer.send(event)
+            self.assertEqual(mock_store_sql_events.call_count, 0, 'No call to insert should happened, batch size not reached')
+            # the two events belong to the same batch the store_sql_events should have
+            writer.send(event)
+            self.assertEqual(mock_store_sql_events.call_count, 1, 'Reached batch size, should have inserted')
+            writer.send(event)
+            self.assertEqual(mock_store_sql_events.call_count, 1, 'No call to insert should happened, batch size not reached')
+
+        mock_holder();
+
+    def test_sql_batching_schemas_and_topics(self):
+        """
+        Send several events that will get batched separately
+        as they belong to different topics
+        """
+        @patch('eventlogging.handlers.store_sql_events')
+        def mock_holder(mock_store_sql_events):
+            writer = eventlogging.get_writer('sqlite://?batch_size=3&batch_time=100000')
+            event_topic1 = _get_event().next()
+            event_topic2 = _get_event().next()
+
+            event_topic2['topic'] = 'different_test_topic'
+            writer.send(event_topic1)
+            writer.send(event_topic1)
+            writer.send(event_topic2)
+            writer.send(event_topic2)
+
+            self.assertEqual(mock_store_sql_events.call_count, 0, 'No call to insert should happened, batch size not reached')
+            # now add a new event on second topic
+            writer.send(event_topic2)
+            self.assertEqual(mock_store_sql_events.call_count, 1, 'Reached batch size, should have inserted')
+            # add a new topic1 event
+            writer.send(event_topic1)
+            self.assertEqual(mock_store_sql_events.call_count, 2, 'Reached batch size, should have inserted')
+
+        mock_holder();
 
 
 class PluginTestCase(unittest.TestCase):
