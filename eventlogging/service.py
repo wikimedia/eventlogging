@@ -26,7 +26,8 @@ from .event import create_event_error, Event
 from .factory import apply_safe, get_writer
 from .schema import (
     cache_schema, init_schema_cache, is_schema_cached, validate,
-    scid_from_uri, get_schema, get_cached_schema_uris
+    scid_from_uri, get_schema, get_cached_schema_uris,
+    get_latest_schema_revision
 )
 from .topic import (
     get_topic_config, is_topic_configured, init_topic_config,
@@ -169,6 +170,8 @@ class EventLoggingService(tornado.web.Application):
         topic = event.topic()
         scid = event.scid()
 
+        # If no schema name was set on this event,
+        # use the one configured for this topic.
         if not scid:
             scid = latest_scid_for_topic(topic)
             # Fill in scid / schema_uri for this even
@@ -178,8 +181,19 @@ class EventLoggingService(tornado.web.Application):
                 'for topic %s' % (event, scid[0], scid[1], topic)
             )
             event.set_scid(scid)
+        # Else at least the schema name was set.
         else:
-            # Make sure the provided event scid is allowed in this topic.
+            # If schema revision was not set, then we default to the latest.
+            if not scid[1]:
+                scid = (scid[0], get_latest_schema_revision(scid[0]))
+                logging.debug(
+                    '%s set schema name but not schema revision. Defaulting '
+                    'schema to latest scid to %s,%s' %
+                    (event, scid[0], scid[1])
+                )
+                event.set_scid(scid)
+
+            # Make sure the provided event schema is allowed in this topic.
             if not schema_allowed_in_topic(scid[0], topic):
                 raise SchemaNotAllowedInTopic(
                     'Events of schema %s are not allowed in topic %s. '

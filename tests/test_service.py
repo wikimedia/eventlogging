@@ -248,6 +248,42 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         response = self.wait()
         self.assertEqual(201, response.code)
 
+    def test_post_valid_event_missing_schema_revision(self):
+        """
+        Posting a valid event with a revision schema_uri
+        defaults to latest schema revision.
+        """
+        headers = {'Content-type': 'application/json'}
+        test_event_with_meta = copy.deepcopy(self.event_with_meta)
+        # Set schema_uri to a revisionless uri.
+        test_event_with_meta['meta']['schema_uri'] = 'TestMetaSchema'
+        body = json.dumps(test_event_with_meta)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(201, response.code)
+
+    def test_post_valid_event_missing_schema_revision_to_wrong_topic(self):
+        """
+        Posting a valid event with a revision schema_uri
+        defaults to latest schema revision, but fails because
+        it the schema is not allowed in the intended topic.
+        """
+        headers = {'Content-type': 'application/json'}
+        test_event_with_meta = copy.deepcopy(self.event_with_meta)
+        # Set schema_uri to a revisionless uri.
+        test_event_with_meta['meta']['schema_uri'] = 'TestSchema'
+        body = json.dumps(test_event_with_meta)
+        self.http_client.fetch(self.get_url('/v1/events'),
+                               self.stop, method="POST",
+                               body=body, headers=headers)
+        response = self.wait()
+        self.assertEqual(400, response.code)
+        # there might be other reasons for which we get a 400
+        # make sure event was not accepted
+        self.assertEqual('0 out of 1 events were accepted.',response.reason)
+
     def test_post_event_missing_required_field(self):
         """
         Posting an invalid event to a configured topic returns 400
