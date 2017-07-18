@@ -11,6 +11,7 @@ from __future__ import division, unicode_literals
 
 import collections
 import datetime
+import dateutil.parser
 import itertools
 import logging
 import _mysql
@@ -55,7 +56,6 @@ def event_to_table_name(event, with_schema_revision=True):
         return '{}_{}'.format(table_name, event.schema_revision())
     else:
         return table_name
-
 
 
 # An iterable of properties that should not be stored in the database.
@@ -105,8 +105,28 @@ class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
         return datetime.datetime.strptime(value, MEDIAWIKI_TIMESTAMP)
 
 
+class DateTimeSerde(sqlalchemy.TypeDecorator):
+    """
+    A :class:`sqlalchemy.TypeDecorator` for datetime columns.
+    This simply uses dateutil.parser.parse on the incoming value
+    to return a Python datetime, which is then given to the
+    sqlalchemy.DateTime column type.  Conversion from
+    sqlalchemy.DateTime back to python datetime is handled
+    by sqlalchemy, so process_result_value is not implemented.
+    """
+
+    impl = sqlalchemy.DateTime
+
+    def process_bind_param(self, value, dialect=None):
+        """Converts a time string to a python datetime."""
+        return dateutil.parser.parse(value)
+
+
 class JsonSerde(sqlalchemy.TypeDecorator):
-    """A :class:`sqlalchemy.TypeDecorator` for converting to and from JSON strings."""
+    """
+    A :class:`sqlalchemy.TypeDecorator` for converting
+    to and from JSON strings.
+    """
 
     impl = sqlalchemy.Unicode(STRING_MAX_LEN)
 
@@ -145,6 +165,10 @@ mappers = collections.OrderedDict((
         'utc-millisec': {'type_': MediaWikiTimestamp, 'index': True},
         'uuid5-hex': {'type_': sqlalchemy.CHAR(32), 'index': True,
                       'unique': True},
+        # Add indexes to datetime fields: T170925
+        # NOTE: I tried to use timestamp instead of datetime, but could
+        # not get sqlalchemy to create those as DEFAULT NULL.
+        'date-time': {'type_': DateTimeSerde, 'index': True}
     }),
     ('required', {
         # Note that required=true makes the column nullable anyway.
@@ -155,6 +179,14 @@ mappers = collections.OrderedDict((
         # required field is present, or discard the event otherwise.
         True: {'nullable': True},
         False: {'nullable': True}
+    }),
+    ('pattern', {
+        # UUID v1 pattern, make a unique index.  T170925
+        '^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$': {
+            'type_': sqlalchemy.CHAR(38),
+            'index': True,
+            'unique': True
+        },
     })
 ))
 

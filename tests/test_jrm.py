@@ -68,12 +68,30 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         cols |= {'id', 'uuid'}                              # plus id, uuid
         self.assertSetEqual(set(t.columns.keys()), cols)
 
-    def test_index_creation(self):
+    def test_timestamp_column_index_creation(self):
         """The ``timestamp`` column is indexed by default."""
         table_name = event_to_table_name(self.event)
         t = eventlogging.jrm.declare_table(self.meta, TEST_SCHEMA_SCID, table_name)
         cols = {column.name for index in t.indexes for column in index.columns}
         self.assertIn('timestamp', cols)
+
+    def test_date_time_type_index_creation(self):
+        """A ``date-time`` column is indexed by default."""
+        table_name = event_to_table_name(self.event_with_meta)
+        t = eventlogging.jrm.declare_table(
+            self.meta, TEST_META_SCHEMA_SCID, table_name, should_encapsulate=False
+        )
+        cols = {column.name for index in t.indexes for column in index.columns}
+        self.assertIn('meta_dt', cols)
+
+    def test_uuid_v1_type_index_creation(self):
+        """A ``uuid v1 pattern`` column is indexed by default."""
+        table_name = event_to_table_name(self.event_with_meta)
+        t = eventlogging.jrm.declare_table(
+            self.meta, TEST_META_SCHEMA_SCID, table_name, should_encapsulate=False
+        )
+        cols = {column.name for index in t.indexes for column in index.columns}
+        self.assertIn('meta_id', cols)
 
     def test_flatten(self):
         """``flatten`` correctly collapses deeply nested maps."""
