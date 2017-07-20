@@ -18,6 +18,7 @@ import tornado.httpserver
 from _codecs import *  # noqa
 import logging
 import os
+import socket
 import yaml
 
 from . import ValidationError, SchemaError  # these are int __init__.py
@@ -35,13 +36,21 @@ from .topic import (
     TopicNotConfigured, TopicNotFound, update_topic_config
 )
 
-
 # These must be checked before we import sprockets because
 # sprockets also sets the envrionment variables if they are not set.
 # Set the default sprockets.mixins.statsd prefix.
 os.environ.setdefault('STATSD_PREFIX', 'eventlogging.service')
 # Don't report per host stats by default.
 os.environ.setdefault('STATSD_USE_HOSTNAME', 'False')
+
+# sprockets.clients.statsd expects STATSD_HOST and STATSD_PORT to be set.
+# If we don't give STATSD_HOST as an IP, the socket.sendto call in that
+# library will end up doing a DNS lookup for every statsd communication.
+# Lookup STATSD_HOST IP now.
+# See also: https://phabricator.wikimedia.org/T171048
+if 'STATSD_HOST' in os.environ:
+    os.environ['STATSD_HOST'] = socket.gethostbyname(os.getenv('STATSD_HOST'))
+
 from sprockets.mixins import statsd  # noqa
 
 
