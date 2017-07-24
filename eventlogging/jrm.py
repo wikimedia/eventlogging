@@ -181,23 +181,51 @@ mappers = collections.OrderedDict((
         False: {'nullable': True}
     }),
     ('pattern', {
-        # UUID v1 pattern, make a unique index.  T170925
+        # UUID v1 pattern, make an index.  T170925
         '^[a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$': {
             'type_': sqlalchemy.CHAR(38),
             'index': True,
-            'unique': True
         },
-    })
+    }),
 ))
 
 
-def typecast(property):
-    """Generates a SQL column definition from a JSON Schema property
-    specifier."""
+# Special case field name options.
+# If given a field name that matches a key here, the
+# options will be added for the column.
+name_mappers = {
+    # Any JSONSchema fields named 'id' should be unique. T171489
+    'id': {
+        'index': True,
+        'unique': True
+    }
+}
+
+print(mappers)
+
+def typecast(property, name=None):
+    """
+    Generates a SQL column definition from a JSON Schema property
+    specifier.
+
+    :param property: JSONSchema property
+    :param name:     JSONSchema field name (optional)
+    """
     options = COLUMN_DEFAULTS.copy()
+    # jsonschema attribute -> jsonschema attribute value -> sqlalchmey option,
     for attribute, mapping in items(mappers):
+        # Get the jsonschema attribute value from the jsonschema property
         value = property.get(attribute)
+        # if this attribute's sqlachemy option mapping contains a setting
+        # for this value, update the options.
         options.update(mapping.get(value, ()))
+
+    # field names are the most specific sqlalchmey option,
+    # update the options if the name_mappers
+    # has a field name key that matches this properties' name.
+    if name and name in name_mappers:
+        options.update(name_mappers[name])
+
     return sqlalchemy.Column(**options)
 
 
@@ -359,7 +387,7 @@ def _property_getter(item):
         if 'properties' in val:
             val = val['properties']
         elif 'type' in val:
-            val = typecast(val)
+            val = typecast(val, key)
     return key, val
 
 

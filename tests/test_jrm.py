@@ -93,6 +93,15 @@ class JrmTestCase(DatabaseTestMixin, unittest.TestCase):
         cols = {column.name for index in t.indexes for column in index.columns}
         self.assertIn('meta_id', cols)
 
+    def test_meta_id_unique_index_creation(self):
+        """A field named ``id`` (e.g. meta.id) should have a unique index."""
+        table_name = event_to_table_name(self.event_with_meta)
+        t = eventlogging.jrm.declare_table(
+            self.meta, TEST_META_SCHEMA_SCID, table_name, should_encapsulate=False
+        )
+        cols = {column.name for index in t.indexes for column in index.columns if index.unique}
+        self.assertIn('meta_id', cols)
+
     def test_flatten(self):
         """``flatten`` correctly collapses deeply nested maps."""
         flat = eventlogging.utils.flatten(self.event)
