@@ -10,13 +10,14 @@ from __future__ import unicode_literals
 
 import os
 import unittest
-from mock import patch, Mock, MagicMock
+from mock import patch
 
 import eventlogging
 import eventlogging.handlers
 import eventlogging.factory
 
 from .fixtures import _get_event
+
 
 def echo_writer(uri, **kwargs):
     values = []
@@ -53,6 +54,7 @@ class HandlerFactoryTestCase(unittest.TestCase):
         reader = eventlogging.get_reader('test://localhost/?value=secret')
         self.assertEqual(next(reader), 'secret')
 
+
 class SQLHandlerTestCase(unittest.TestCase):
 
     def test_sql_batching_happy_case_same_schema(self):
@@ -66,19 +68,33 @@ class SQLHandlerTestCase(unittest.TestCase):
         @patch('eventlogging.handlers.store_sql_events')
         def mock_holder(mock_store_sql_events):
 
-            writer = eventlogging.get_writer('sqlite://?batch_size=3&batch_time=100000')
+            writer = eventlogging.get_writer(
+                'sqlite://?batch_size=3&batch_time=100000')
             event = _get_event().next()
 
             writer.send(event)
             writer.send(event)
-            self.assertEqual(mock_store_sql_events.call_count, 0, 'No call to insert should happened, batch size not reached')
-            # the two events belong to the same batch the store_sql_events should have
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                0,
+                'No call to insert should happened, batch size not reached'
+            )
+            # the two events belong to the same batch
+            # the store_sql_events should have
             writer.send(event)
-            self.assertEqual(mock_store_sql_events.call_count, 1, 'Reached batch size, should have inserted')
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                1,
+                'Reached batch size, should have inserted'
+            )
             writer.send(event)
-            self.assertEqual(mock_store_sql_events.call_count, 1, 'No call to insert should happened, batch size not reached')
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                1,
+                'No call to insert should happened, batch size not reached'
+            )
 
-        mock_holder();
+        mock_holder()
 
     def test_sql_batching_schemas_and_topics(self):
         """
@@ -89,7 +105,8 @@ class SQLHandlerTestCase(unittest.TestCase):
         # it, until python3 doesn't play seamlessly with unittest
         @patch('eventlogging.handlers.store_sql_events')
         def mock_holder(mock_store_sql_events):
-            writer = eventlogging.get_writer('sqlite://?batch_size=3&batch_time=100000')
+            writer = eventlogging.get_writer(
+                'sqlite://?batch_size=3&batch_time=100000')
             event_topic1 = _get_event().next()
             event_topic2 = _get_event().next()
 
@@ -99,15 +116,27 @@ class SQLHandlerTestCase(unittest.TestCase):
             writer.send(event_topic2)
             writer.send(event_topic2)
 
-            self.assertEqual(mock_store_sql_events.call_count, 0, 'No call to insert should happened, batch size not reached')
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                0,
+                'No call to insert should happened, batch size not reached'
+            )
             # now add a new event on second topic
             writer.send(event_topic2)
-            self.assertEqual(mock_store_sql_events.call_count, 1, 'Reached batch size, should have inserted')
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                1,
+                'Reached batch size, should have inserted'
+            )
             # add a new topic1 event
             writer.send(event_topic1)
-            self.assertEqual(mock_store_sql_events.call_count, 2, 'Reached batch size, should have inserted')
+            self.assertEqual(
+                mock_store_sql_events.call_count,
+                2,
+                'Reached batch size, should have inserted'
+            )
 
-        mock_holder();
+        mock_holder()
 
 
 class PluginTestCase(unittest.TestCase):

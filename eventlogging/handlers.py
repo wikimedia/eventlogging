@@ -72,7 +72,8 @@ def find_function(function_name):
     """
     function = plugin_functions.get(function_name)
     if not function:
-        raise NotImplementedError('Function %s not implemented' % function_name)
+        raise NotImplementedError(
+            'Function %s not implemented' % function_name)
     return function
 
 

@@ -208,7 +208,7 @@ _schemas = {
 _event = {
     'event': {
         'value': '☆ 彡',
-        'list': ['a','☆ 彡'],
+        'list': ['a', '☆ 彡'],
         'nested': {
             'deeplyNested': {
                 'pi': 3.14159

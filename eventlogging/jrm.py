@@ -203,6 +203,7 @@ name_mappers = {
 
 print(mappers)
 
+
 def typecast(property, name=None):
     """
     Generates a SQL column definition from a JSON Schema property

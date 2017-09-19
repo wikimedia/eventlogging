@@ -282,7 +282,7 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
         self.assertEqual(400, response.code)
         # there might be other reasons for which we get a 400
         # make sure event was not accepted
-        self.assertEqual('0 out of 1 events were accepted.',response.reason)
+        self.assertEqual('0 out of 1 events were accepted.', response.reason)
 
     def test_post_event_missing_required_field(self):
         """
