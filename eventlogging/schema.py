@@ -319,7 +319,7 @@ def get_cached_schema_uris():
     """
     Returns a list of schema_uris of all cached schemas.""
     """
-    return map(schema_uri_from_scid, get_cached_scids())
+    return list(map(schema_uri_from_scid, get_cached_scids()))
 
 
 def scid_from_uri(

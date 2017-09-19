@@ -70,7 +70,7 @@ class SQLHandlerTestCase(unittest.TestCase):
 
             writer = eventlogging.get_writer(
                 'sqlite://?batch_size=3&batch_time=100000')
-            event = _get_event().next()
+            event = next(_get_event())
 
             writer.send(event)
             writer.send(event)
@@ -107,8 +107,8 @@ class SQLHandlerTestCase(unittest.TestCase):
         def mock_holder(mock_store_sql_events):
             writer = eventlogging.get_writer(
                 'sqlite://?batch_size=3&batch_time=100000')
-            event_topic1 = _get_event().next()
-            event_topic2 = _get_event().next()
+            event_topic1 = next(_get_event())
+            event_topic2 = next(_get_event())
 
             event_topic2['topic'] = 'different_test_topic'
             writer.send(event_topic1)
