@@ -23,6 +23,10 @@
   +--------+-----------------------------+
   |   %t   | Timestamp in NCSA format    |
   +--------+-----------------------------+
+  |   %D   | Timestamp in ISO-8601 format|
+  +--------+-----------------------------+
+  |   %u   | User agent to be parsed     |
+  +--------+-----------------------------+
   | %{..}i | Tab-delimited string        |
   +--------+-----------------------------+
   | %{..}s | Space-delimited string      |
@@ -42,7 +46,7 @@ import uuid
 
 from .compat import json, unquote_plus, uuid5
 from .event import Event
-from .utils import parse_ua
+from .utils import parse_ua, iso8601_from_timestamp
 
 __all__ = (
     'LogParser', 'ncsa_to_unix',
@@ -57,10 +61,11 @@ NCSA_FORMAT = '%Y-%m-%dT%H:%M:%S'
 # origin hostname, sequence ID, and timestamp. This combination is
 # guaranteed to be unique. Example::
 #
-#   event://vanadium.eqiad.wmnet/?seqId=438763&timestamp=1359702955
+#   event://cp1054.eqiad.wmnet/?seqId=438763&dt=2013-01-21T18:10:34
 #
 EVENTLOGGING_URL_FORMAT = (
-    'event://%(recvFrom)s/?seqId=%(seqId)s&timestamp=%(timestamp).10s')
+    'event://%(recvFrom)s/?seqId=%(seqId)s&dt=%(dt)s'
+)
 
 
 def capsule_uuid(capsule):
@@ -72,10 +77,19 @@ def capsule_uuid(capsule):
     ..seealso:: `RFC 4122 <https://www.ietf.org/rfc/rfc4122.txt>`_.
 
     :param capsule: A capsule object (or any dictionary that defines
-      `recvFrom`, `seqId`, and `timestamp`).
+      `recvFrom`, `seqId`, and `dt`).
 
     """
-    id = uuid5(uuid.NAMESPACE_URL, EVENTLOGGING_URL_FORMAT % capsule)
+    uuid_fields = {
+        'recvFrom': capsule.get('recvFrom'),
+        'seqId': capsule.get('seqId'),
+        # TODO: remove this timestamp default as part of T179625
+        'dt': capsule.get('dt', iso8601_from_timestamp(
+            capsule.get('timestamp', time.time())
+        ))
+    }
+
+    id = uuid5(uuid.NAMESPACE_URL, EVENTLOGGING_URL_FORMAT % uuid_fields)
     return '%032x' % id.int
 
 
@@ -110,7 +124,8 @@ class LogParser(object):
         """
         self.format = format
 
-        # A mapping of format specifiers to a tuple of (regexp, caster).
+        # A mapping of format specifiers (%d, %i, etc.)
+        # to a tuple of (regexp, caster).
         self.format_specifiers = {
             'd': (r'(?P<%s>\d+)', int),
             'i': (r'(?P<%s>[^\t]+)', str),
@@ -119,6 +134,9 @@ class LogParser(object):
             's': (r'(?P<%s>\S+)', str),
             't': (r'(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})',
                   ncsa_to_unix),
+            'D': (r'(?P<dt>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})',
+                  iso8601_from_timestamp),
+            'u': (r'(?P<userAgent>[^\t]+)', parse_ua),
             # Set caster to None for the ignore/omit format specifier
             # so the corresponding value doesn't end up in the parsed event
             'o': (r'(?P<omit>\S+)', None),
@@ -128,9 +146,22 @@ class LogParser(object):
         # format string.
         self.casters = []
 
-        # Compiled regexp.
+        # Convert the format string to a regex that will match
+        # the incoming lines into named groups and include them
+        # into the parsed dict.
+
+        # Space chars in format string should match any number of
+        # space characters.
         format = re.sub(' ', r'\s+', format)
-        raw = re.sub(r'(?<!%)%({(\w+)})?([dijqsto])', self._repl, format)
+
+        # Pattern that converts from format specifiers (e.g. %t, %d, etc.)
+        # into a regex will extract into a matched group key name.
+        format_to_regex_pattern = '(?<!%%)%%({(\w+)})?([%s])' % (
+            ''.join(self.format_specifiers.keys())
+        )
+        raw = re.sub(
+            re.compile(format_to_regex_pattern), self._repl, format
+        )
         self.re = re.compile(raw)
 
     def _repl(self, spec):
@@ -156,8 +187,11 @@ class LogParser(object):
         event = {k: f(match.group(k)) for f, k in caster_key_pairs}
         event.update(event.pop('capsule'))
         event['uuid'] = capsule_uuid(event)
-        if ('userAgent' in event) and event['userAgent']:
-            event['userAgent'] = parse_ua(event['userAgent'])
+
+        # TODO: remove this code in favor of %u format specifier
+        # after %{userAgent}i is not used. T179625
+        if 'userAgent' in event and isinstance(event['userAgent'], str):
+            event['userAgent'] = json.dumps(parse_ua(event['userAgent']))
         return Event(event)
 
     def __repr__(self):

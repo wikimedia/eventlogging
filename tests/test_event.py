@@ -163,7 +163,7 @@ class EventTestCase(SchemaTestMixin, unittest.TestCase):
         """Test that a datetime can be extracted from event meta"""
         self.assertEqual(
             self.event.datetime(),
-            eventlogging.utils.datetime_from_timestamp(self.event['timestamp'])
+            eventlogging.utils.datetime_from_timestamp(self.event['dt'])
         )
         self.assertEqual(
             self.event_with_meta.datetime(),

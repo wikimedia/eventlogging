@@ -152,7 +152,7 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
 
     def test_missing_property(self):
         """Missing property in capsule object triggers validation failure."""
-        self.event.pop('timestamp')
+        self.event.pop('uuid')
         self.assertIsInvalid(self.event)
 
     def test_missing_nested_property(self):
@@ -183,7 +183,7 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
     def test_capsule_uuid(self):
         """capsule_uuid() generates a unique UUID for capsule objects."""
         self.assertEqual(eventlogging.capsule_uuid(self.event),
-                         'babb66f34a0a5de3be0c6513088be33e')
+                         '93e0f58d0c605e90a3c4861b1f00c407')
 
     def test_empty_event(self):
         """An empty event with no mandatory properties should validate"""

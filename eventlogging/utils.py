@@ -12,7 +12,6 @@ from __future__ import unicode_literals
 import copy
 import datetime
 import dateutil.parser
-import json
 import logging
 import re
 import os
@@ -34,7 +33,8 @@ from logging.config import fileConfig
 __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
            'setup_logging', 'unflatten', 'update_recursive',
            'uri_delete_query_item', 'uri_append_query_items', 'uri_force_raw',
-           'parse_etcd_uri', 'datetime_from_uuid1', 'datetime_from_timestamp')
+           'parse_etcd_uri', 'datetime_from_uuid1', 'datetime_from_timestamp',
+           'iso8601_from_timestamp')
 
 # Regex extending uaparser's bot/spider detection, comes from
 # Webrequest.java in refinery-source/core
@@ -294,6 +294,10 @@ def datetime_from_timestamp(t):
     return dt
 
 
+def iso8601_from_timestamp(t):
+    return datetime_from_timestamp(t).isoformat()
+
+
 def setup_logging(config_file=None):
     if config_file:
         fileConfig(config_file)
@@ -313,7 +317,7 @@ def setup_logging(config_file=None):
 
 def parse_ua(user_agent):
     """
-    Returns a json string containing the parsed User Agent data
+    Returns a dict containing the parsed User Agent data
     from a request's UA string. Uses the following format:
     {
         "device_family": "Other",
@@ -356,7 +360,7 @@ def parse_ua(user_agent):
 
     # escape json so it doesn't cause problems when validating
     # to string (per capsule definition)
-    return json.dumps(formatted_ua)
+    return formatted_ua
 
 
 def is_bot(device_family, user_agent):

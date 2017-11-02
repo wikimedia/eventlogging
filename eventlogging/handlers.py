@@ -27,7 +27,7 @@ import traceback
 
 from .compat import items, json
 from .event import Event
-from .factory import writes, reads, get_reader
+from .factory import writes, reads, get_reader, get_writer
 from .streams import stream, pub_socket, sub_socket, udp_socket
 from .jrm import store_sql_events
 from .topic import TopicNotFound
@@ -70,6 +70,8 @@ def find_function(function_name):
     Arguments:
         *function_name (str): name of the function specified in url params
     """
+    if function_name in globals():
+        return globals()[function_name]
     function = plugin_functions.get(function_name)
     if not function:
         raise NotImplementedError(
@@ -479,6 +481,7 @@ def sql_writer(
     try:
         while True:
             event = (yield)
+
             # Group the event stream by schema (and revision)
             scid = event.scid()
             try:
@@ -600,6 +603,36 @@ def udp_writer(hostname, port, raw=False):
         else:
             sock.sendto(json.dumps(event), (hostname, port))
 
+
+@writes('map')
+def map_writer(uri, function):
+    """
+    Receives events and runs a map function on them.
+    The map function is specified in the url's parameters.
+    It should either return a new mapped event, or None if you want
+    to exclude (filter) that event from the stream.
+
+    Arguments:
+        *uri: a writer uri, with a custom "map" scheme, e.g.
+            map://{kafka_uri}?function={map_function}
+        *function (str): name of the map function as given by the
+            url's parameters
+    """
+    if not callable(function):
+        function = find_function(function)
+
+    # Remove 'map://'' and 'function' query arg from uri.
+    writer_uri = uri_delete_query_item(uri.replace("map://", ""), 'function')
+
+    writer = get_writer(writer_uri)
+
+    while True:
+        event = (yield)
+        mapped_event = function(event)
+        if mapped_event is not None:
+            writer.send(mapped_event)
+
+
 #
 # Readers
 #
@@ -625,6 +658,9 @@ def udp_reader(hostname, port, raw=False):
     return stream(udp_socket(hostname, port), raw)
 
 
+# TODO: Remove this in favor of the more versitile
+# map:// reader/writer after it is no longer used in
+# production.  T179625
 @reads('filter')
 def filtered_reader(uri, function):
     """
@@ -640,6 +676,32 @@ def filtered_reader(uri, function):
     filter_function = find_function(function)
     reader_uri = uri.replace("filter://", "")
     return (e for e in get_reader(reader_uri) if filter_function(e))
+
+
+@reads('map')
+def map_reader(uri, function):
+    """
+    Receives events and runs a map function on them.
+    The map function is specified in the url's parameters.
+    It should either return a new mapped event, or None if you want
+    to exclude (filter) that event from the stream.
+
+    Arguments:
+        *uri: a reader uri, with a custom "map" scheme, e.g.
+            map://{kafka_uri}?function={map_function}
+        *function (str): name of the map function as given by the
+            url's parameters
+    """
+    if not callable(function):
+        function = find_function(function)
+
+    # Remove 'map://'' and 'function' query arg from uri.
+    reader_uri = uri_delete_query_item(uri.replace("map://", ""), 'function')
+
+    # Apply map function to each item in the stream to create a new stream.
+    new_stream = (function(e) for e in get_reader(reader_uri))
+    # Return a new stream with Nones removed.
+    return (e for e in new_stream if e is not None)
 
 
 # Can be addressed as default kafka:// handler, and as specific

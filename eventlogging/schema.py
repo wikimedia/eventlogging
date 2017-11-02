@@ -64,7 +64,7 @@ SCHEMA_URI_PATTERN = re.compile(
 SCHEMA_URI_FORMAT = '%s/%s'
 
 # SCID of the metadata object which wraps each capsule-style event.
-CAPSULE_SCID = ('EventCapsule', 15423246)
+CAPSULE_SCID = ('EventCapsule', 17397982)
 
 # TODO: Make new meta style EventError on meta.
 ERROR_SCID = ('EventError', 14035058)

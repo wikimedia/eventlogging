@@ -10,7 +10,6 @@ from __future__ import unicode_literals
 
 import calendar
 import datetime
-import json
 import unittest
 
 import eventlogging
@@ -34,7 +33,7 @@ class LogParserTestCase(unittest.TestCase):
     def test_parse_client_side_events(self):
         """Parser test: client-side events."""
         parser = eventlogging.LogParser(
-            '%q %{recvFrom}s %{seqId}d %t %o %{userAgent}i')
+            '%q %{recvFrom}s %{seqId}d %D %o %u')
         raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
                '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
                '2%3A1%2C%22articleTitle%22%3A%22H%C3%A9ctor%20Elizondo%22%7'
@@ -42,7 +41,7 @@ class LogParserTestCase(unittest.TestCase):
                'ms.wikimedia.org 132073 2013-01-19T23:16:38 - '
                'Mozilla/5.0 (X11; Linux x86_64; rv:10.0)'
                ' Gecko/20100101 Firefox/10.0')
-        ua = json.dumps({
+        ua = {
                 'os_minor': None,
                 'os_major': None,
                 'device_family': 'Other',
@@ -53,14 +52,14 @@ class LogParserTestCase(unittest.TestCase):
                 'wmf_app_version': '-',
                 'is_bot': False,
                 'is_mediawiki': False
-            })
+            }
         parsed = {
-            'uuid': '799341a01ba957c79b15dc4d2d950864',
+            'uuid': '5202f558f6aa5894978062d7aa039486',
             'recvFrom': 'cp3022.esams.wikimedia.org',
             'wiki': 'testwiki',
             'webHost': 'test.wikipedia.org',
             'seqId': 132073,
-            'timestamp': 1358637398,
+            'dt': '2013-01-19T23:16:38',
             'schema': 'Generic',
             'revision': 13,
             'userAgent': ua,
@@ -72,37 +71,15 @@ class LogParserTestCase(unittest.TestCase):
         fromParser = parser.parse(raw)
         for key in parsed:
             if key == 'userAgent':
-                # Python changes the order of keys when dumping objects into
-                # a string, so we need to compare the ua separately parsing
-                # it into an object.
-                self.assertEqual(json.loads(parsed[key]),
-                                 json.loads(fromParser[key]))
+                self.assertEqual(parsed[key],
+                                 fromParser[key])
             else:
                 self.assertEqual(fromParser[key], parsed[key])
 
-    def test_parser_server_side_events(self):
-        """Parser test: server-side events."""
-        parser = eventlogging.LogParser('%{seqId}d EventLogging %j')
-        raw = ('99 EventLogging {"revision":123,"timestamp":1358627115,"sche'
-               'ma":"FakeSchema","wiki":"enwiki","event":{"action":"save\\u0'
-               '020page"},"recvFrom":"fenari"}')
-        parsed = {
-            'uuid': '67cc2c1afa5752ba80bbbd7c5fc41f28',
-            'recvFrom': 'fenari',
-            'timestamp': 1358627115,
-            'wiki': 'enwiki',
-            'seqId': 99,
-            'schema': 'FakeSchema',
-            'revision': 123,
-            'event': {
-                'action': 'save page'
-            }
-        }
-        self.assertEqual(parser.parse(raw), parsed)
 
     def test_parser_bot_requests(self):
         parser = eventlogging.LogParser(
-            '%q %{recvFrom}s %{seqId}d %t %o %{userAgent}i')
+            '%q %{recvFrom}s %{seqId}d %D %o %u')
         # Bot - recognised by uaparser
         raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22Generic'
                '%22%2C%22revision%22%3A13%2C%22event%22%3A%7B%22articleId%2'
@@ -111,7 +88,7 @@ class LogParserTestCase(unittest.TestCase):
                'ms.wikimedia.org 132073 2013-01-19T23:16:38 - '
                'AppEngine-Google; (+http://code.google.com/appengine; appid'
                ': webetrex)')
-        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        ua_map = parser.parse(raw)['userAgent']
         self.assertEqual(ua_map['is_bot'], True)
         # Bot - not recognised by uaparser
         raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22G'
@@ -120,7 +97,7 @@ class LogParserTestCase(unittest.TestCase):
                'o%22%7D%2C%22webHost%22%3A%22test.wikipedia.org%22%7D; cp30'
                '22.esams.wikimedia.org 132073 2013-01-19T23:16:38 - '
                'WikiDemo/10.2.0;')
-        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        ua_map = parser.parse(raw)['userAgent']
         self.assertEqual(ua_map['is_bot'], True)
         # Regular browser
         raw = ('?%7B%22wiki%22%3A%22testwiki%22%2C%22schema%22%3A%22'
@@ -130,14 +107,16 @@ class LogParserTestCase(unittest.TestCase):
                '022.esams.wikimedia.org 132073 2013-01-19T23:16:38 - '
                'Mozilla/5.0 (X11; Linux x86_64; rv:10.0)'
                ' Gecko/20100101 Firefox/10.0')
-        ua_map = json.loads(parser.parse(raw)['userAgent'])
+        ua_map = parser.parse(raw)['userAgent']
         self.assertEqual(ua_map['is_bot'], False)
+
 
     def test_parse_failure(self):
         """Parse failure raises ValueError exception."""
         parser = eventlogging.LogParser('%q %{recvFrom}s %t')
         with self.assertRaises(ValueError):
             parser.parse('Fails to parse.')
+
 
     def test_repr(self):
         """Calling 'repr' on LogParser returns canonical string

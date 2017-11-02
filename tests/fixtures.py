@@ -94,8 +94,12 @@ _schemas = {
                 },
                 'timestamp': {
                     'type': 'number',
-                    'required': True,
-                    'format': 'utc-millisec'
+                    'required': False,
+                },
+                'dt': {
+                    'type': 'string',
+                    'required': False,
+                    'format': 'date-time'
                 },
                 'uuid': {
                     'type': 'string',
@@ -103,9 +107,41 @@ _schemas = {
                     'format': 'uuid5-hex'
                 },
                 'userAgent': {
-                    'type': 'string',
-                    'description': 'User Agent from HTTP request',
-                    'required': False
+                    'type': 'any',
+                    'description': 'Parsed User Agent from HTTP request',
+                    'required': False,
+                    'properties': {
+                        'browser_family': {
+                            'type': 'string'
+                        },
+                        'browser_major': {
+                            'type': 'string'
+                        },
+                        'browser_minor': {
+                            'type': 'string'
+                        },
+                        'device_family': {
+                            'type': 'string'
+                        },
+                        'os_family': {
+                            'type': 'string'
+                        },
+                        'os_major': {
+                            'type': 'string'
+                        },
+                        'os_minor': {
+                            'type': 'string'
+                        },
+                        'wmf_app_version': {
+                            'type': 'string'
+                        },
+                        'is_bot': {
+                            'type': 'boolean'
+                        },
+                        'is_mediawiki': {
+                            'type': 'boolean'
+                        }
+                    }
                 }
             },
             'additionalProperties': False
@@ -217,6 +253,7 @@ _event = {
     },
     'seqId': 12345,
     'timestamp': 1358791834912,
+    'dt': '2013-01-21T18:10:34.912000',
     'wiki': 'enwiki',
     'webHost': 'en.m.wikipedia.org',
     'recvFrom': 'fenari',
@@ -234,6 +271,7 @@ _incorrectly_serialized_empty_event = {
     'event': [],
     'seqId': 12345,
     'timestamp': 1358791834912,
+    'dt': '2013-01-21T18:10:34.912000',
     'wiki': 'enwiki',
     'webHost': 'en.m.wikipedia.org',
     'recvFrom': 'fenari',

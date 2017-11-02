@@ -91,10 +91,15 @@ class MediaWikiTimestamp(sqlalchemy.TypeDecorator):
     def process_bind_param(self, value, dialect=None):
         """Convert an integer timestamp (specifying number of seconds or
         miliseconds since UNIX epoch) to MediaWiki timestamp format."""
-        if value > 1e12:
-            value /= 1000
-        value = datetime.datetime.utcfromtimestamp(value).strftime(
-            MEDIAWIKI_TIMESTAMP)
+
+        if isinstance(value, str):
+            dt = dateutil.parser.parse(value)
+        else:
+            if value > 1e12:
+                value /= 1000
+            dt = datetime.datetime.utcfromtimestamp(value)
+
+        value = dt.strftime(MEDIAWIKI_TIMESTAMP)
         if hasattr(value, 'decode'):
             value = value.decode('utf-8')
         return value
@@ -162,7 +167,6 @@ mappers = collections.OrderedDict((
         'array': {'type_': JsonSerde},
     }),
     ('format', {
-        'utc-millisec': {'type_': MediaWikiTimestamp, 'index': True},
         'uuid5-hex': {'type_': sqlalchemy.CHAR(32), 'index': True,
                       'unique': True},
         # Add indexes to datetime fields: T170925
@@ -198,10 +202,14 @@ name_mappers = {
     'id': {
         'index': True,
         'unique': True
+    },
+    # 'timestamp' should be indexed and trasformed to Mediawiki Timestamp
+    # for backwards compatibility: T179540
+    'timestamp': {
+        'type_': MediaWikiTimestamp,
+        'index': True
     }
 }
-
-print(mappers)
 
 
 def typecast(property, name=None):
@@ -213,15 +221,15 @@ def typecast(property, name=None):
     :param name:     JSONSchema field name (optional)
     """
     options = COLUMN_DEFAULTS.copy()
-    # jsonschema attribute -> jsonschema attribute value -> sqlalchmey option,
+    # jsonschema attribute -> jsonschema attribute value -> sqlalchemy option,
     for attribute, mapping in items(mappers):
         # Get the jsonschema attribute value from the jsonschema property
         value = property.get(attribute)
         # if this attribute's sqlachemy option mapping contains a setting
         # for this value, update the options.
-        options.update(mapping.get(value, ()))
+        options.update(mapping.get(str(value), ()))
 
-    # field names are the most specific sqlalchmey option,
+    # field names are the most specific sqlalchemy option,
     # update the options if the name_mappers
     # has a field name key that matches this properties' name.
     if name and name in name_mappers:
@@ -385,7 +393,13 @@ def _property_getter(item):
     and their types from schema."""
     key, val = item
     if isinstance(val, dict):
-        if 'properties' in val:
+        if ('properties' in val and
+                # Only use properties if no type is given
+                # (top level schema) or the type of the field
+                # is explicitly an 'object'.  This avoids
+                # using the object properties for object fields
+                # with multiple possible types.
+                ('type' not in val or val['type'] == 'object')):
             val = val['properties']
         elif 'type' in val:
             val = typecast(val, key)

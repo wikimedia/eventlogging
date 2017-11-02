@@ -21,7 +21,9 @@
   formatters:
      %j         JSON object
      %q         Query-string-encoded JSON
-     %t         Timestamp in NCSA format.
+     %D         Timestamp in ISO-8601 format.
+     %t         Timestamp in NCSA format -> integer timestamp
+     %u         userAgent string to be parsed into an object
      %o         Omit/Ignore the value
 
   :copyright: (c) 2012 by Ori Livneh <ori@wikimedia.org>

@@ -11,7 +11,6 @@ from __future__ import unicode_literals
 import datetime
 import unittest
 import uuid
-import json
 
 import eventlogging
 from eventlogging.compat import long
@@ -146,7 +145,7 @@ class UtilsTestCase(unittest.TestCase):
 
     def test_ua_parse_ios(self):
         ios_ua = 'WikipediaApp/5.3.3.1038 (iOS 10.2; Phone)'
-        parsed = json.dumps({
+        parsed = {
             'os_minor': '2',
             'os_major': '10',
             'device_family': 'Other',
@@ -157,13 +156,13 @@ class UtilsTestCase(unittest.TestCase):
             'wmf_app_version': '5.3.3.1038',
             'is_bot': False,
             'is_mediawiki': False
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(ios_ua)))
+        }
+        self.assertEqual(parsed,
+                         eventlogging.utils.parse_ua(ios_ua))
 
     def test_ua_parse_android(self):
         android_ua = 'WikipediaApp/2.4.160-r-2016-10-14 (Android 4.4.2; Phone)'
-        parsed = json.dumps({
+        parsed = {
             'os_major': '4',
             'wmf_app_version': '2.4.160-r-2016-10-14',
             'os_family': 'Android',
@@ -174,13 +173,13 @@ class UtilsTestCase(unittest.TestCase):
             'os_minor': '4',
             'is_bot': False,
             'is_mediawiki': False
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(android_ua)))
+        }
+        self.assertEqual(parsed,
+                         eventlogging.utils.parse_ua(android_ua))
 
     def test_ua_parse_empty(self):
         ua = ""
-        parsed = json.dumps({
+        parsed = {
             'os_minor': None,
             'os_major': None,
             'device_family': 'Other',
@@ -191,13 +190,13 @@ class UtilsTestCase(unittest.TestCase):
             'wmf_app_version': '-',
             'is_bot': False,
             'is_mediawiki': False
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(ua)))
+        }
+        self.assertEqual(parsed,
+                         eventlogging.utils.parse_ua(ua))
 
     def test_ua_parse_mediawiki(self):
         mw_ua = 'MediaWiki 1.28'
-        parsed = json.dumps({
+        parsed = {
             'os_major': None,
             'wmf_app_version': '-',
             'os_family': 'Other',
@@ -208,6 +207,6 @@ class UtilsTestCase(unittest.TestCase):
             'os_minor': None,
             'is_bot': False,
             'is_mediawiki': True
-        })
-        self.assertEqual(json.loads(parsed),
-                         json.loads(eventlogging.utils.parse_ua(mw_ua)))
+        }
+        self.assertEqual(parsed,
+                         eventlogging.utils.parse_ua(mw_ua))
