@@ -44,7 +44,7 @@ import re
 import time
 import uuid
 
-from .compat import json, unquote_plus, uuid5
+from .compat import json, unquote_plus, uuid5, string_types
 from .event import Event
 from .utils import parse_ua, iso8601_from_timestamp
 
@@ -190,7 +190,9 @@ class LogParser(object):
 
         # TODO: remove this code in favor of %u format specifier
         # after %{userAgent}i is not used. T179625
-        if 'userAgent' in event and isinstance(event['userAgent'], str):
+        if 'userAgent' in event and isinstance(
+            event['userAgent'], string_types
+        ):
             event['userAgent'] = json.dumps(parse_ua(event['userAgent']))
         return Event(event)
 
