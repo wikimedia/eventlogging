@@ -358,8 +358,6 @@ def parse_ua(user_agent):
         version = items[0].split("/")[1]
         formatted_ua['wmf_app_version'] = version
 
-    # escape json so it doesn't cause problems when validating
-    # to string (per capsule definition)
     return formatted_ua
 
 
