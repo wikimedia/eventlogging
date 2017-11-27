@@ -29,7 +29,7 @@ from tornado.ioloop import IOLoop
 from . import ValidationError, SchemaError  # these are int __init__.py
 from .compat import json
 from .event import create_event_error, Event
-from .factory import apply_safe, get_writer
+from .factory import get_writer
 from .schema import (
     cache_schema, init_schema_cache, is_schema_cached, validate,
     scid_from_uri, get_schema, get_cached_schema_uris,
@@ -157,13 +157,10 @@ class EventLoggingService(tornado.web.Application):
 
     def send(self, event):
         """
-        Send the event to configured eventlogging writers. If a writer
-        returns a future like object, this method will convert it into
-        a tornado future.  A list of these futures will be returned.
-
-        The non tornado futures returned by the eventlogging writer handlers
-        MUST each have a convert_yielded future function
-        registered with @tornado.gen.convert_yielded.register.
+        Send the event to configured eventlogging writers.  If the configured
+        writers yield anything back, it is expected that they yield either
+        a Tornado future, or a Future like object that has a convert_yielded
+        future function registered with @tornado.gen.convert_yielded.register.
         """
         futures = []
         for uri in self.writers.keys():
@@ -190,7 +187,7 @@ class EventLoggingService(tornado.web.Application):
                 if future:
                     futures.append(future)
 
-        # Return the list of tornado futures.
+        # Return the list of futures.
         return futures
 
     @tornado.gen.coroutine
@@ -240,8 +237,8 @@ class EventLoggingService(tornado.web.Application):
         validate(event, encapsulate=event.should_encapsulate())
 
         # Send this processed event to all configured writers.  This will
-        # return a list a futures, the result of which will be yielded to the
-        # caller.
+        # get a list of tornado futures, the result of which will be yielded
+        # to the caller.
         yield self.send(event)
 
     @tornado.gen.coroutine
@@ -263,6 +260,7 @@ class EventLoggingService(tornado.web.Application):
             error_message = None
 
             try:
+                # process event
                 yield self.process_event(event)
 
             except TopicNotConfigured as e:
@@ -325,8 +323,8 @@ class EventLoggingService(tornado.web.Application):
                     if self.error_writer:
                         self.error_writer.send(event_error)
 
-        # raise Return will cause the gen.coroutine
-        # to return a future filled with event_errors
+        # raise tornado.gen.Return will cause the gen.coroutine
+        # to return a tornado future filled with event_errors
         raise tornado.gen.Return(event_errors)
 
     def start(self):
@@ -346,9 +344,10 @@ class EventHandler(
         """
         events_string json string is read in from POST body.
         It can be a single event object or a list of event objects.
-        They will be asynchronously parsed and validated, and then
-        written to configured EventLogging writers.  'topic'
-        must be set in each event's meta data.
+        They will be parsed and validated, and then
+        (asynchronously, if supported) written to configured
+        EventLogging writers.
+        'topic' must be set in each event's meta data.
 
         Reponses:
         - 201 if all events are accepted.
@@ -359,8 +358,6 @@ class EventHandler(
         body as a JSON list of the form:
         [{'event': {...}, 'error': 'String Error Message'}, ... ]
 
-        # TODO: Use EventError and configure an error writer like
-          eventlogging-processor?
         """
         response_body = None
         if self.request.headers['Content-Type'] == 'application/json':
@@ -368,9 +365,7 @@ class EventHandler(
                 if self.request.body:
 
                     # Load the json body into Event objects.
-                    events = yield tornado.gen.Task(
-                        apply_safe, Event.factory, {'data': self.request.body}
-                    )
+                    events = Event.factory(self.request.body)
 
                     # If we were only given a single event in the json,
                     # convert it to a list so the rest of the code just works.
