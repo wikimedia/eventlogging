@@ -291,6 +291,9 @@ class EventLoggingService(tornado.web.Application):
                     type(e).__name__,
                     e.message
                 )
+                # Log generic exceptions here so we get
+                # full stacktrace in logs.
+                logging.exception(error_message)
 
             finally:
                 # If we encountered an error while processing this event,
