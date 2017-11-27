@@ -179,16 +179,69 @@ class LogParser(object):
         """Parse a log line into a map of field names / values."""
         match = self.re.match(line)
         if match is None:
-            raise ValueError(self.re, line)
-        keys = sorted(match.groupdict(), key=match.start)
-        # Filter out the caster-key pairs where caster is None
-        caster_key_pairs = [pair for pair in zip(self.casters, keys)
-                            if pair[0]]
-        event = {k: f(match.group(k)) for f, k in caster_key_pairs}
-        event.update(event.pop('capsule'))
-        event['uuid'] = capsule_uuid(event)
+            raise ValueError(self.re.pattern, line)
 
-        return Event(event)
+        # Dict of capture group name to matched value, e.g userAgent: "..."
+        matches = match.groupdict()
+
+        if 'capsule' not in matches.keys():
+            raise ValueError(
+                '\'capsule\' was not matched in line, but it is required',
+                (self.re.pattern, line)
+            )
+
+        # Just the matched capture group names.
+        keys = sorted(matches, key=match.start)
+
+        # Build a dict of capture group names to caster functions.
+        # This works because self.casters is a list of functions in the
+        # same order of keys returned by match.groupdict.
+        # Also filter out the casters where caster is None, so we omit it.
+        caster_dict = dict([pair for pair in zip(keys, self.casters)
+                            if pair[1]])
+
+        # 'capsule' is a required format specifier.
+        # Parse it out now as the main event.
+        capsule = caster_dict['capsule'](matches['capsule'])
+        # capsule at this point MUST be a dict
+        if not isinstance(capsule, dict):
+            raise ValueError(
+                'capsule was successfully parsed, but not as an object.',
+                capsule
+            )
+
+        # Apply caster functions to event 'capsule'
+        # level fields that also have casters defined.
+        for k in (set(capsule.keys()) & set(caster_dict.keys())):
+            capsule[k] = caster_dict[k](capsule[k])
+
+        # For other fields that have been parsed out of the raw event log line
+        # Apply their specifier 'caster' functions.  Only use the data from
+        # the raw line if and only if it is not already present in the
+        # capsule data.
+        # This is how we keep user submitted event data in the capsule even if
+        # there is data for that field in the raw line.  E.g. if the user sent
+        # an event capsule with a 'userAgent' field already in it, we will use
+        # the user sent userAgent, not the one that might be parsed from the
+        # raw log line.  Note that in this example, the userAgent sent in
+        # the event capsule data will only be 'cast' (parsed) if the %u
+        # speficier was used, and the caster to a 'userAgent' field is
+        # defined. This is true for any field.  If it is not in the format
+        # string, it will not be 'cast', but just used as is.
+        parsed_fields_from_line = {
+            k: f(matches[k]) for k, f in caster_dict.items()
+            # skip the 'capsule' caster, since we already did it,
+            # and also skip any casters that are already in the
+            # capsule, since we already did those too.
+            if k != 'capsule' and k not in capsule.keys()
+        }
+        # Add the parsed fields to the event capsule.
+        capsule.update(parsed_fields_from_line)
+
+        # Add a uuid for this event.
+        capsule['uuid'] = capsule_uuid(capsule)
+
+        return Event(capsule)
 
     def __repr__(self):
         return '<LogParser(\'%s\')>' % self.format
