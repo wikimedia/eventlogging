@@ -24,6 +24,7 @@ import kafka
 import os
 import socket
 import yaml
+from tornado.ioloop import IOLoop
 
 from . import ValidationError, SchemaError  # these are int __init__.py
 from .compat import json
@@ -549,14 +550,18 @@ def convert_kafka_future(kafka_future):
         tf should be a tornado Future to set either
         result or exception appropriately.
         """
-        if isinstance(v, BaseException):
-            tf.set_exception(v)
-            # TODO: This seems correct, but causes
-            # an exception to be thrown from the Future object.
-            # tf.set_exc_info(sys.exc_info())
-        else:
-            tf.set_result(v)
-            logging.debug('Delivered to kafka: %s', v)
+        def actual_callback():
+            if isinstance(v, BaseException):
+                tf.set_exception(v)
+            else:
+                tf.set_result(v)
+                logging.debug('Delivered to kafka: %s', v)
+
+        # Kafka driver calls the delivery callback on the thread
+        # other then the MainThread, so transfer the control back
+        # to the main thread. It is safe to access the value as
+        # kafka producer is thread safe.
+        IOLoop.current().add_callback(actual_callback)
 
     tornado_future = tornado.concurrent.Future()
     # When kafka's future calls this delivery callback, the
