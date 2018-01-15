@@ -17,13 +17,13 @@ import httplib
 import argparse
 from threading import Thread
 from Queue import Queue
+from eventlogging import get_event_capsule_schema
 
 
 POOL_SIZE = 100
 SCHEMA_HOST = 'meta.wikimedia.org'
 SCHEMA_URL = ('/w/api.php?action=query&prop=revisions&format=json'
               '&rvprop=content&titles=Schema:%s&revid=%s')
-CAPSULE_REVISION = 10981547
 EL_URL = '/beacon/event?%s;'
 
 
@@ -201,7 +201,7 @@ def weighted_choice(choices):
 def main():
     print('Initializing...')
     sleep_interval, generators, optional_values, endpoint = get_arguments()
-    capsule_schema = get_schema('EventCapsule', CAPSULE_REVISION)
+    capsule_schema = get_event_capsule_schema()
     pool = ThreadPool(POOL_SIZE)
     print('Sending events...')
     count = 0

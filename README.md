@@ -88,7 +88,7 @@ In either case, it is important that every event is tagged with uniquely identif
 
 #### EventCapsule (mediawiki extension)
 
-[EventCapsules](https://meta.wikimedia.org/wiki/Schema:EventCapsule) wrap the actual event content with a meta data parent object.  This meta schema has fields that are Mediawiki specific, and should only be used for events generated via the [EventLogging Mediawiki Extension](https://www.mediawiki.org/wiki/Extension:EventLogging).  Events of this kind are usually intaken and parsed using `eventlogging-processor` and a custom format.  These events will have the client generated event content data in the `event` field of the EventCapsule object.
+EventCapsules (./eventlogging/capsule.py) wrap the actual event content with a meta data parent object.  This meta schema has fields that are Mediawiki specific, and should only be used for events generated via the [EventLogging Mediawiki Extension](https://www.mediawiki.org/wiki/Extension:EventLogging).  Events of this kind are usually intaken and parsed using `eventlogging-processor` and a custom format.  These events will have the client generated event content data in the `event` field of the EventCapsule object.
 
 `scids` are obtained from EventCapsule objects via the `schema` and `revision` fields, to make up the `(schema, revision)` `scid` tuple.
 

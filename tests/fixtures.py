@@ -58,95 +58,9 @@ _meta_properties = {
     }
 }
 
+
+
 _schemas = {
-    eventlogging.schema.CAPSULE_SCID[0]: {
-        eventlogging.schema.CAPSULE_SCID[1]: {
-            'properties': {
-                'event': {
-                    'type': 'object',
-                    'required': True
-                },
-                'wiki': {
-                    'type': 'string',
-                    'required': True
-                },
-                'webHost': {
-                    'type': 'string'
-                },
-                'revision': {
-                    'type': 'integer',
-                    'required': True
-                },
-                'schema': {
-                    'type': 'string',
-                    'required': True
-                },
-                # TODO: Make change to EventCapsule on meta to include topic
-                'topic': {
-                    'type': 'string',
-                },
-                'recvFrom': {
-                    'type': 'string',
-                    'required': True
-                },
-                'seqId': {
-                    'type': 'integer'
-                },
-                'timestamp': {
-                    'type': 'number',
-                    'required': False,
-                },
-                'dt': {
-                    'type': 'string',
-                    'required': False,
-                    'format': 'date-time'
-                },
-                'uuid': {
-                    'type': 'string',
-                    'required': True,
-                    'format': 'uuid5-hex'
-                },
-                'userAgent': {
-                    'type': 'any',
-                    'description': 'Parsed User Agent from HTTP request',
-                    'required': False,
-                    'properties': {
-                        'browser_family': {
-                            'type': 'string'
-                        },
-                        'browser_major': {
-                            'type': 'string'
-                        },
-                        'browser_minor': {
-                            'type': 'string'
-                        },
-                        'device_family': {
-                            'type': 'string'
-                        },
-                        'os_family': {
-                            'type': 'string'
-                        },
-                        'os_major': {
-                            'type': 'string'
-                        },
-                        'os_minor': {
-                            'type': 'string'
-                        },
-                        'wmf_app_version': {
-                            'type': 'string'
-                        },
-                        'is_bot': {
-                            'type': 'boolean'
-                        },
-                        'is_mediawiki': {
-                            'type': 'boolean'
-                        }
-                    }
-                }
-            },
-            'additionalProperties': False
-        }
-    },
     eventlogging.schema.ERROR_SCID[0]: {
         eventlogging.schema.ERROR_SCID[1]: {
             'properties': {

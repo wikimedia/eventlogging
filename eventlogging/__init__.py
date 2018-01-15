@@ -16,6 +16,7 @@
 """
 # flake8: noqa
 
+from .capsule import *
 from .compat import *
 from .event import *
 from .factory import *

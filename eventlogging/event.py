@@ -13,9 +13,10 @@ import socket
 import time
 import uuid
 
+from .capsule import get_event_capsule_schema
 from .compat import json, string_types
 from .schema import (
-    get_schema, CAPSULE_SCID, ERROR_SCID, url_from_scid, scid_from_uri,
+    get_schema, ERROR_SCID, url_from_scid, scid_from_uri,
     SCHEMA_RE_PATTERN
 )
 from .topic import TopicNotFound
@@ -151,7 +152,7 @@ class Event(dict):
             meta = self.get('meta')
         # else use keys from EventCapsule as meta
         else:
-            capsule_keys = get_schema(CAPSULE_SCID)['properties'].keys()
+            capsule_keys = get_event_capsule_schema()['properties'].keys()
             # don't include 'event' in capsule keys, it is the event data.
             meta = {
                 key: self.get(key) for key in capsule_keys if (

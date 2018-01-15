@@ -175,8 +175,8 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
 
     def test_encapsulated_schema(self):
         """get_schema() returns encapsulated schema if requested."""
-        encapsulated = eventlogging.get_schema(eventlogging.CAPSULE_SCID)
-        encapsulated['event'] = eventlogging.get_schema(TEST_SCHEMA_SCID)
+        encapsulated = eventlogging.get_event_capsule_schema()
+        encapsulated['properties']['event'] = eventlogging.get_schema(TEST_SCHEMA_SCID)
         self.assertEqual(eventlogging.get_schema(TEST_SCHEMA_SCID, True),
                          encapsulated)
 

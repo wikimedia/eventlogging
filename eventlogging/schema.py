@@ -19,13 +19,14 @@ import yaml
 
 from jsonschema import ValidationError, SchemaError
 
+from .capsule import get_event_capsule_schema
 from .compat import integer_types, string_types, url_get, urisplit
 
 __all__ = (
     'cache_schema', 'get_schema', 'validate', 'init_schema_cache',
-    'is_schema_cached', 'get_latest_schema_revision', 'CAPSULE_SCID',
-    'ERROR_SCID', 'SCHEMA_RE_PATTERN', 'get_schema_cache',
-    'schema_uri_from_scid', 'get_cached_scids', 'get_cached_schema_uris'
+    'is_schema_cached', 'get_latest_schema_revision', 'ERROR_SCID',
+    'SCHEMA_RE_PATTERN', 'get_schema_cache', 'schema_uri_from_scid',
+    'get_cached_scids', 'get_cached_schema_uris'
 )
 
 # Regular expression which matches valid schema names.
@@ -62,9 +63,6 @@ SCHEMA_URI_PATTERN = re.compile(
 # A schema's relative uri (not meta.wikimedia.org schema repo URL)
 # is schema_name/schema_revision
 SCHEMA_URI_FORMAT = '%s/%s'
-
-# SCID of the metadata object which wraps each capsule-style event.
-CAPSULE_SCID = ('EventCapsule', 17418976)
 
 # TODO: Make new meta style EventError on meta.
 ERROR_SCID = ('EventError', 14035058)
@@ -117,7 +115,7 @@ def get_schema(scid, encapsulate=False, remote_enabled=True):
     # See `<https://bugzilla.wikimedia.org/show_bug.cgi?id=44454>`_.
     schema.setdefault('additionalProperties', False)
     if encapsulate:
-        capsule = get_schema(CAPSULE_SCID)
+        capsule = get_event_capsule_schema()
         capsule['properties']['event'] = schema
         return capsule
     return schema
