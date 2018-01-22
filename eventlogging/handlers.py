@@ -35,6 +35,8 @@ from .utils import uri_delete_query_item, kafka_ids
 
 __all__ = ('load_plugins',)
 
+KAFKA_CONFLUENT_RETRY_BUFFER_FULL = 5
+
 # EventLogging will attempt to load the configuration file specified in the
 # 'EVENTLOGGING_PLUGIN_DIR' environment variable if it is defined. If it is
 # not defined, EventLogging will default to the value specified below.
@@ -382,53 +384,88 @@ def kafka_confluent_writer(
 
     kafka_producer = Producer(**kafka_args)
 
-    while True:
-        event = (yield)
+    try:
+        while True:
+            event = (yield)
 
-        # If event is not raw and blacklist_pattern is set,
-        # then check to see if we should skip this event.
-        if not raw and blacklist_pattern:
-            schema_name, revision = event.scid()
-            if blacklist_pattern.match(schema_name):
-                logging.debug(
-                    '%s is blacklisted, not writing event %s.' %
-                    (schema_name, event)
-                )
-                continue
+            # If event is not raw and blacklist_pattern is set,
+            # then check to see if we should skip this event.
+            if not raw and blacklist_pattern:
+                schema_name, revision = event.scid()
+                if blacklist_pattern.match(schema_name):
+                    logging.debug(
+                        '%s is blacklisted, not writing event %s.' %
+                        (schema_name, event)
+                    )
+                    continue
 
-        # Get the actual Kafka topic to which we will produce
-        try:
-            message_topic = topic.encode('utf-8') if raw else \
-                event.topic(topic_format=topic).encode('utf-8')
-        # If we failed getting topic, log and skip the event.
-        except TopicNotFound as e:
-            logging.error('%s.  Skipping event' % e)
-            continue
-
-        # Unless key is found, just use None.
-        message_key = None
-        # If not raw and key is set, then look for the key in the event.
-        if not raw and key:
+            # Get the actual Kafka topic to which we will produce
             try:
-                message_key = key.format(**event)
-            # If we failed getting key, log and skip the event.
-            except KeyError as e:
-                logging.error(
-                    'Could not get message key from event. KeyError: %s. '
-                    'Skipping event.' % e
-                )
+                message_topic = topic.encode('utf-8') if raw else \
+                    event.topic(topic_format=topic).encode('utf-8')
+            # If we failed getting topic, log and skip the event.
+            except TopicNotFound as e:
+                logging.error('%s.  Skipping event' % e)
                 continue
 
-        message_value = event.encode('utf-8') if raw else \
-            json.dumps(event, sort_keys=True).encode('utf-8')
+            # Unless key is found, just use None.
+            message_key = None
+            # If not raw and key is set, then look for the key in the event.
+            if not raw and key:
+                try:
+                    message_key = key.format(**event)
+                # If we failed getting key, log and skip the event.
+                except KeyError as e:
+                    logging.error(
+                        'Could not get message key from event. KeyError: %s. '
+                        'Skipping event.' % e
+                    )
+                    continue
 
-        # Produce the message.
-        kafka_producer.produce(message_topic, message_value, message_key)
+            message_value = event.encode('utf-8') if raw else \
+                json.dumps(event, sort_keys=True).encode('utf-8')
 
-        # If not async, the flush Kafka produce buffer now and block
-        # until we are done.
-        if not async:
-            kafka_producer.flush()
+            # When a event is passed to "produce" it will end up in a local
+            # buffer (controlled by librdkafka) first, and then later on it
+            # will be delivered to Kafka.
+            # It might happen that the buffer is full, so the following logic
+            # is needed to implement a simple retry logic before giving up.
+            event_enqueued = False
+            enqueue_retries = 0
+            while (not event_enqueued and
+                   enqueue_retries < KAFKA_CONFLUENT_RETRY_BUFFER_FULL):
+                try:
+                    # Produce the message.
+                    enqueue_retries += 1
+                    kafka_producer.produce(
+                        message_topic, message_value, message_key)
+                    event_enqueued = True
+                except BufferError as e:
+                    if enqueue_retries < KAFKA_CONFLUENT_RETRY_BUFFER_FULL:
+                        logging.warning(
+                            'Local produce queue full, waiting for '
+                            'events delivered.')
+                        kafka_producer.poll(0.5)
+                    else:
+                        logging.error("Failed to enqueue an event to the "
+                                      "local kafka producer queue after %d "
+                                      "retries.".format(enqueue_retries))
+                        raise e
+
+            # If not async, flush the Kafka produce buffer now and block
+            # until we are done.
+            if not async:
+                kafka_producer.flush()
+
+            # Non blocking poll
+            kafka_producer.poll(0)
+
+    finally:
+        # Before shutting down, attempt to flush every event/message contained
+        # in the librdkafka local buffer.
+        logging.warn('Force a flush of the produce buffer before leaving '
+                     'the kafka-confluent writer.')
+        kafka_producer.flush()
 
 
 @writes('mysql', 'sqlite')
