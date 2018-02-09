@@ -175,7 +175,8 @@ _event = {
     'schema': 'TestSchema',
     'uuid': 'babb66f34a0a5de3be0c6513088be33e',
     'topic': 'test_topic',
-    'userAgent': 'test user agent'
+    'userAgent': 'test user agent',
+    "ip":"208.80.154.224"
 }
 
 # {} is preferred and PHP side of EL
@@ -192,7 +193,8 @@ _incorrectly_serialized_empty_event = {
     'revision': 123,
     'schema': 'TestSchema',
     'uuid': 'babb66f34a0a5de3be0c6513088be33e',
-    'userAgent': 'test user agent'
+    'userAgent': 'test user agent',
+    "ip":"208.80.154.224"
 }
 
 # An event that doesn't use EventCapsule,

@@ -86,6 +86,13 @@ EVENT_CAPSULE_SCHEMA = {
                             'parsed object, parsed JSON string, or '
                             'original User-Agent string.'),
             'required': False
+        },
+        'ip': {
+            'type': 'string',
+            'description': ('Client IP address that sent this event, '
+                            'usually best guess parsed out of from '
+                            'X-Forwarded-For.'),
+            'required': False
         }
     },
     'additionalProperties': False

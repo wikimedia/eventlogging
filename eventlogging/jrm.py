@@ -60,7 +60,7 @@ def event_to_table_name(event, with_schema_revision=True):
 
 # An iterable of properties that should not be stored in the database.
 NO_DB_PROPERTIES = (
-    'recvFrom', 'revision', 'schema', 'seqId', 'topic'
+    'recvFrom', 'revision', 'schema', 'seqId', 'topic', 'ip'
 )
 
 # A dictionary mapping database engine names to table defaults.
