@@ -278,7 +278,8 @@ class EventLoggingService(tornado.web.Application):
                     'in %s. %s' % (event, e)
 
             except ValidationError as e:
-                error_message = 'Failed validating %s. %s ' % (
+                error_message = 'Failed validating at path %s: %s. %s ' % (
+                    '/'.join(e.path),
                     event,
                     e.message
                 )
