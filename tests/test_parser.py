@@ -106,8 +106,8 @@ class LogParserTestCase(unittest.TestCase):
             'device_family': 'Other',
             'is_bot': False,
             'is_mediawiki': False,
-            'os_family': 'Windows 7',
-            'os_major': None,
+            'os_family': 'Windows',
+            'os_major': '7',
             'os_minor': None,
             'wmf_app_version': '-'
         }
