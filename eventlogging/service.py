@@ -419,7 +419,7 @@ class EventHandler(
 
     def on_connection_close(self):
         logging.warn(
-            'Client closed connection before sending events finished. Body:\n%s'
+            'Client closed connection before sending events finished. Body:\n%s',
             self.request.body
         )
 
