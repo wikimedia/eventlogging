@@ -8,7 +8,7 @@
 
 import copy
 from tornado.testing import AsyncHTTPTestCase
-from tornado.testing import get_unused_port
+from tornado.testing import bind_unused_port
 
 import eventlogging
 from eventlogging.service import (
@@ -37,7 +37,8 @@ class TestEventLoggingService(SchemaTestMixin, AsyncHTTPTestCase):
 
     def get_app(self):
         writers = []
-        application = EventLoggingService(writers, None, get_unused_port())
+        port = bind_unused_port()[1]
+        application = EventLoggingService(writers, None, port)
         return application
 
     def test_get_response_content_type(self):
@@ -405,7 +406,8 @@ class TestEventLoggingServiceWithFileWriter(
             text=True,
         )
         writers = ['file://' + self.temp_file_path]
-        application = EventLoggingService(writers, None, get_unused_port())
+        port = bind_unused_port()[1]
+        application = EventLoggingService(writers, None, port)
 
         return application
 
