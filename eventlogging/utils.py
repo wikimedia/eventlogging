@@ -13,6 +13,7 @@ import copy
 import datetime
 import dateutil.parser
 import logging
+from logging.config import fileConfig, dictConfig
 import re
 import os
 import socket
@@ -21,13 +22,13 @@ import threading
 import traceback
 import uuid
 from ua_parser import user_agent_parser
+import yaml
 
 from .compat import (
     items, monotonic_clock, urisplit, urlencode, parse_qsl,
     integer_types, string_types, long
 )
 from .factory import get_reader, cast_string
-from logging.config import fileConfig
 
 
 __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
@@ -298,9 +299,41 @@ def iso8601_from_timestamp(t):
     return datetime_from_timestamp(t).isoformat()
 
 
+class ExtraFilter(logging.Filter):
+    """
+    Instantiated with a static dict extra,
+    This will add every k,v pair in extra
+    to the log record as an attribute.
+
+    Usage:
+        logger.addFilter(ExtraFilter({'tags': ['tag1', 'tag2']}))
+    """
+    def __init__(self, extra={}):
+        self.extra = extra
+
+    def filter(self, record):
+        for k, v in self.extra.items():
+            setattr(record, k, v)
+        return True
+
+
 def setup_logging(config_file=None):
+    """
+    Set up either default logging settings, or use config_file
+    to setup logging.  If config_file ends with .yaml or .json,
+    we will read it in and use dictConfig, else we will use fileConfig.
+    """
     if config_file:
-        fileConfig(config_file)
+        # If this is json or yaml, read the file in and
+        # setup logging using dictConfig
+        if re.search(r'\.(yaml|yml|json)$', config_file):
+            with open(config_file) as f:
+                dictConfig(yaml.safe_load(f))
+
+        # Else assume this is old style cfg file format and use fileConfig.
+        else:
+            fileConfig(config_file)
+
     else:
         eventlogging_log_level = getattr(
             logging, os.environ.get('LOG_LEVEL', 'INFO')
