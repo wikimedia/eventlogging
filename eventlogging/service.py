@@ -176,11 +176,14 @@ class EventLoggingService(tornado.web.Application):
             # If the writer coroutine has stopped (likley due to
             # an error during the previous send()), attempt to
             # recreate the writer now.
-            except StopIteration as e:
+            except (StopIteration, kafka.errors.IllegalStateError) as e:
                 logging.error(
                     "Writer %s has stopped: %s.  Attempting to restart." %
                     (uri, e)
                 )
+                # Close the writer, just in case it is still open.
+                w.close()
+                # Recreate the writer.
                 w = get_writer(uri)
                 self.writers[uri] = w
                 future = w.send(event)
@@ -288,8 +291,15 @@ class EventLoggingService(tornado.web.Application):
             # error output writer fails too, an exception will be
             # thrown and not caught during the error_writer.send() call.
             except Exception as e:
-                error_message = 'Failed sending event %s. %s: %s' % (
+                # get the topic this message was destined to, if any.
+                try:
+                    topic_info = ' to topic %s' % event.topic()
+                except TopicNotFound:
+                    topic_info = ''
+
+                error_message = 'Failed sending event %s%s. %s: %s' % (
                     event,
+                    topic_info,
                     type(e).__name__,
                     e.message
                 )
