@@ -228,12 +228,11 @@ def kafka_python_writer(
     else:
         blacklist_pattern = None
 
-    # Yielding response_future back from the coroutine send() call is
-    # experimental.
-    response_future = None
-    while 1:
-        event = (yield response_future)
-
+    def produce_event(event):
+        """
+        Produces event to kafka_producer.
+        Returns kafka-python FutureRecordMetadata
+        """
         # If event is not raw and blacklist_pattern is set,
         # then check to see if we should skip this event.
         if not raw and blacklist_pattern:
@@ -243,7 +242,7 @@ def kafka_python_writer(
                     '%s is blacklisted, not writing event %s.' %
                     (schema_name, event)
                 )
-                continue
+                return
 
         # Get the actual Kafka topic to which we will produce
         try:
@@ -252,7 +251,7 @@ def kafka_python_writer(
         # If we failed getting topic, log and skip the event.
         except TopicNotFound as e:
             logging.error('%s.  Skipping event' % e)
-            continue
+            return
 
         # Unless key is found, just use None.
         message_key = None
@@ -266,20 +265,36 @@ def kafka_python_writer(
                     'Could not get message key from event. KeyError: %s. '
                     'Skipping event.' % e
                 )
-                continue
+                return
 
         # Produce the message.
-        response_future = kafka_producer.send(
+        return kafka_producer.send(
             message_topic, key=message_key, value=event
         )
 
-        # If we didn't want async production, then get the
-        # result of the future now.
-        if not async:
-            # This will raise an exception if the produce request
-            # fails or is timed out.
-            response_future.get(sync_timeout)
-            response_future = None
+    # If async, response_future will be yielded back from the coroutine send()
+    response_future = None
+
+    # Coroutine/generator loop
+    try:
+        while 1:
+            event = (yield response_future)
+            response_future = produce_event(event)
+
+            # If we didn't want async production, then get the
+            # result of the future now.
+            if not async:
+                # This will raise an exception if the produce request
+                # fails or is timed out.
+                response_future.get(sync_timeout)
+                response_future = None
+
+    # If the generator coroutine is closing, flush and close kafka_producer.
+    finally:
+        logging.warn('Force a flush of the produce buffer before leaving '
+                     'the kafka-python writer.')
+        kafka_producer.flush(30)
+        kafka_producer.close(10)
 
 
 # NOTE: kafka-confluent is experimental.
