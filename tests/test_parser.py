@@ -54,12 +54,12 @@ class LogParserTestCase(unittest.TestCase):
                 'is_mediawiki': False
             }
         parsed = {
-            'uuid': 'e6b17e1f661155bd8523d14c87d0600b',
+            'uuid': '749684341abf513186c71f74c6a09502',
             'recvFrom': 'srv0.example.org',
             'wiki': 'testwiki',
             'webHost': 'test.wikipedia.org',
             'seqId': 132073,
-            'dt': '2013-01-19T23:16:38',
+            'dt': '2013-01-19T23:16:38Z',
             'schema': 'Generic',
             'revision': 13,
             'userAgent': ua,
@@ -70,13 +70,11 @@ class LogParserTestCase(unittest.TestCase):
         }
         fromParser = parser.parse(raw)
         for key in parsed:
-            if key == 'userAgent':
-                self.assertEqual(parsed[key],
-                                 fromParser[key])
-            else:
-                self.assertEqual(fromParser[key], parsed[key])
-
-
+            self.assertEqual(
+                fromParser[key], parsed[key],
+                "%s parsed incorrectly. expected:\n%s'\nactual:\n'%s'" %
+                    (key, parsed[key], fromParser[key])
+            )
 
     def test_parse_capsule_user_agent(self):
         """
@@ -112,12 +110,12 @@ class LogParserTestCase(unittest.TestCase):
             'wmf_app_version': '-'
         }
         parsed = {
-            'uuid': 'e6b17e1f661155bd8523d14c87d0600b',
+            'uuid': '749684341abf513186c71f74c6a09502',
             'recvFrom': 'srv0.example.org',
             'wiki': 'testwiki',
             'webHost': 'test.wikipedia.org',
             'seqId': 132073,
-            'dt': '2013-01-19T23:16:38',
+            'dt': '2013-01-19T23:16:38Z',
             'schema': 'Generic',
             'revision': 13,
             'userAgent': ua,
@@ -128,11 +126,11 @@ class LogParserTestCase(unittest.TestCase):
         }
         fromParser = parser.parse(raw)
         for key in parsed:
-            if key == 'userAgent':
-                self.assertEqual(parsed[key],
-                                 fromParser[key])
-            else:
-                self.assertEqual(fromParser[key], parsed[key])
+            self.assertEqual(
+                fromParser[key], parsed[key],
+                "%s parsed incorrectly. expected:\n%s'\nactual:\n'%s'" %
+                    (key, parsed[key], fromParser[key])
+            )
 
     def test_parser_bot_requests(self):
         parser = eventlogging.LogParser(

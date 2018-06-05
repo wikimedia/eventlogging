@@ -12,6 +12,7 @@ from __future__ import unicode_literals
 import copy
 import datetime
 import dateutil.parser
+from dateutil.tz import tzutc
 import logging
 from logging.config import fileConfig, dictConfig
 import re
@@ -35,7 +36,10 @@ __all__ = ('EventConsumer', 'PeriodicThread', 'flatten', 'is_subset_dict',
            'setup_logging', 'unflatten', 'update_recursive',
            'uri_delete_query_item', 'uri_append_query_items', 'uri_force_raw',
            'parse_etcd_uri', 'datetime_from_uuid1', 'datetime_from_timestamp',
-           'iso8601_from_timestamp')
+           'timestamp_from_datetime', 'iso8601_from_timestamp')
+
+# UTC Epoch datetime, used for converting datetime to integer unix timestamps.
+epoch = datetime.datetime.utcfromtimestamp(0).replace(tzinfo=tzutc())
 
 # Regex extending uaparser's bot/spider detection, comes from
 # Webrequest.java in refinery-source/core
@@ -272,11 +276,15 @@ def datetime_from_uuid1(u):
 def datetime_from_timestamp(t):
     """
     Returns a datetime.datetime instance from
-    a timestamp.
+    a timestamp.  If no timezone is parsed from t, it is assumed to be UTC.
     :param t: int, long or float timestamp, OR a string timestamp parseable
               by dateutil.parser.parse.
     """
-    if isinstance(t, float):
+
+    # Already a datetime, use it
+    if isinstance(t, datetime.datetime):
+        dt = t
+    elif isinstance(t, float):
         dt = datetime.datetime.fromtimestamp(t)
     elif isinstance(t, integer_types):
         # try to parse this as seconds
@@ -292,11 +300,36 @@ def datetime_from_timestamp(t):
             "Could not parse datetime from timestamp %s. "
             "%s is not a datetime parseable type" % (t, type(t))
         )
+
+    # Assume dt is in utc if it has no tzinfo.
+    if not dt.tzinfo:
+        dt = dt.replace(tzinfo=tzutc())
+
     return dt
 
 
 def iso8601_from_timestamp(t):
-    return datetime_from_timestamp(t).isoformat()
+    """
+    Returns an ISO-8601 formatted string from the 'timestamp' t.
+    Here, timestamp can be anything suitable for passing to
+    datetime_from_timestamp.  If the timezone of t is UTC (assumed
+    if none is parsed from it), the timezone offset will be formatted
+    as the 'Z' suffix, rather a +00:00.
+    """
+    return datetime_from_timestamp(t).isoformat().replace('+00:00', 'Z')
+
+
+def timestamp_from_datetime(d, milliseconds=True):
+    """
+    Returns a unix timestamp integer from a datetime.datetime instance.
+    :param d: datetime
+    :param milliseconds: boolean If True (default), this will return
+                         the a number of milliseconds, else seconds.
+    """
+    t = (d - epoch).total_seconds()
+    if milliseconds:
+        t = t * 1000
+    return int(t)
 
 
 class ExtraFilter(logging.Filter):

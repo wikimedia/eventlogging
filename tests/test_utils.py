@@ -9,6 +9,8 @@
 from __future__ import unicode_literals
 
 import datetime
+import dateutil.parser
+from dateutil.tz import tzutc
 import unittest
 import uuid
 
@@ -101,7 +103,7 @@ class UtilsTestCase(unittest.TestCase):
         """`datetime_from_timestamp` returns correct datetime"""
         ts = 1447270770
         ts_milli = 1447270770.00000
-        dt = datetime.datetime.fromtimestamp(ts)
+        dt = datetime.datetime.fromtimestamp(ts).replace(tzinfo=tzutc())
         iso8601 = dt.isoformat()
         self.assertEqual(
             eventlogging.utils.datetime_from_timestamp(ts),
@@ -117,6 +119,19 @@ class UtilsTestCase(unittest.TestCase):
         )
         with self.assertRaises(RuntimeError):
             eventlogging.utils.datetime_from_timestamp(self)
+
+    def test_timestamp_from_datetime(self):
+        """`timestamp_from_datetime` returns correct timestamps"""
+        dt = dateutil.parser.parse('2018-06-01T12:24:12Z')
+        ts = 1527855852
+        self.assertEqual(
+            eventlogging.utils.timestamp_from_datetime(dt, milliseconds=False),
+            ts
+        )
+        self.assertEqual(
+            eventlogging.utils.timestamp_from_datetime(dt, milliseconds=True),
+            int(ts * 1000)
+        )
 
     def test_kafka_ids(self):
         """

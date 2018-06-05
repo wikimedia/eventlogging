@@ -178,6 +178,29 @@ class EventTestCase(SchemaTestMixin, unittest.TestCase):
             None
         )
 
+    def test_timestamp(self):
+        """Test that datetime can be converted to ms timestamp"""
+        self.assertEqual(
+            self.event.timestamp(),
+            eventlogging.utils.timestamp_from_datetime(
+                eventlogging.utils.datetime_from_timestamp(self.event['dt'])
+            )
+        )
+        self.assertEqual(
+            self.event_with_meta.timestamp(),
+            eventlogging.utils.timestamp_from_datetime(
+                eventlogging.utils.datetime_from_timestamp(
+                    self.event_with_meta['meta']['dt']
+            ))
+
+        )
+        # No datetime to parse in event should return None by default
+        del self.event_with_meta['meta']['dt']
+        self.assertEqual(
+            self.event_with_meta.timestamp(),
+            None
+        )
+
     def test_topic(self):
         """Test that topic is extracted or interpolated from an event"""
         self.assertEqual(

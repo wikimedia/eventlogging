@@ -130,6 +130,9 @@ def kafka_python_writer(
     This is to ensure that messages are retried upon routine metadata changes
     like partition leadership change.
 
+    If the event has a timestamp, the message will be produced
+    with the Kafka message timestamp set to the event timestamp.
+
     Arguments:
         *path (str): URI path should be comma separated Kafka Brokers.
             e.g. kafka01:9092,kafka02:9092,kafka03:9092
@@ -253,23 +256,27 @@ def kafka_python_writer(
             logging.error('%s.  Skipping event' % e)
             return
 
-        # Unless key is found, just use None.
+        # Unless key/timestamp is found, just use None.
         message_key = None
-        # If not raw and key is set, then look for the key in the event.
-        if not raw and key:
-            try:
-                message_key = key.format(**event)
-            # If we failed getting key, log and skip the event.
-            except KeyError as e:
-                logging.error(
-                    'Could not get message key from event. KeyError: %s. '
-                    'Skipping event.' % e
-                )
-                return
+        timestamp = None
+        # If this is an Event, then lookup timestamp
+        # and the key (if needed) from the Event object.
+        if not raw:
+            timestamp = event.timestamp()
+            if key:
+                try:
+                    message_key = key.format(**event)
+                # If we failed getting key, log and skip the event.
+                except KeyError as e:
+                    logging.error(
+                        'Could not get message key from event. KeyError: %s. '
+                        'Skipping event.' % e
+                    )
+                    return
 
         # Produce the message.
         return kafka_producer.send(
-            message_topic, key=message_key, value=event
+            message_topic, key=message_key, value=event, timestamp_ms=timestamp
         )
 
     # If async, response_future will be yielded back from the coroutine send()

@@ -20,7 +20,7 @@ from .schema import (
     SCHEMA_RE_PATTERN
 )
 from .topic import TopicNotFound
-from .utils import datetime_from_timestamp
+from .utils import datetime_from_timestamp, timestamp_from_datetime
 
 __all__ = ('create_event_error', 'Event')
 
@@ -185,6 +185,16 @@ class Event(dict):
             return None
         else:
             return datetime_from_timestamp(t)
+
+    def timestamp(self):
+        """
+        Returns this event's datetime as a milliseconds
+        unix epoch UTC timestamp.
+        """
+        d = self.datetime()
+        if d:
+            d = timestamp_from_datetime(d)
+        return d
 
     def schema_name(self):
         """
