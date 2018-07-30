@@ -381,7 +381,7 @@ def setup_logging(config_file=None):
         logging.getLogger("kazoo").setLevel(logging.INFO)
 
 
-def parse_ua(user_agent):
+def parse_ua(user_agent, max_length=800):
     """
     Returns a dict containing the parsed User Agent data
     from a request's UA string. Uses the following format:
@@ -402,8 +402,12 @@ def parse_ua(user_agent):
     WikipediaApp/2.4.160-r-2016-10-14 (Android 4.4.2; Phone) Google Play
     "wmf_app_version":"2.4.160-r-2016-10-14"
     """
-    parsed_ua = user_agent_parser.Parse(user_agent)
+    if len(user_agent) > max_length:
+        raise RuntimeError("User Agent string length ({}) longer "
+                           "than the allowed {} chars"
+                           .format(len(user_agent), max_length))
     formatted_ua = {}
+    parsed_ua = user_agent_parser.Parse(user_agent)
     formatted_ua['device_family'] = parsed_ua['device']['family']
     formatted_ua['browser_family'] = parsed_ua['user_agent']['family']
     formatted_ua['browser_major'] = parsed_ua['user_agent']['major']
@@ -411,6 +415,7 @@ def parse_ua(user_agent):
     formatted_ua['os_family'] = parsed_ua['os']['family']
     formatted_ua['os_major'] = parsed_ua['os']['major']
     formatted_ua['os_minor'] = parsed_ua['os']['minor']
+
     # default wmf_app_version is '-'
     formatted_ua['wmf_app_version'] = '-'
     # is request a bot/spider?
