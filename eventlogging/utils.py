@@ -374,11 +374,12 @@ def setup_logging(config_file=None):
         logging.basicConfig(
             stream=sys.stderr,
             level=eventlogging_log_level,
-            format='%(asctime)s [%(process)s] (%(threadName)-10s) %(message)s')
+            format=('%(asctime)s [%(process)s] (%(threadName)-10s) %(name)s '
+                    '[%(levelname)s] %(message)s'))
 
         # Set module logging level to INFO, DEBUG is too noisy.
-        logging.getLogger("kafka").setLevel(logging.INFO)
-        logging.getLogger("kazoo").setLevel(logging.INFO)
+        logging.getLogger("kafka").setLevel(eventlogging_log_level)
+        logging.getLogger("kazoo").setLevel(eventlogging_log_level)
 
 
 def parse_ua(user_agent, max_length=800):
