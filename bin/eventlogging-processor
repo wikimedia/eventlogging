@@ -39,7 +39,7 @@ sys.setdefaultencoding('utf-8')
 import argparse
 import logging
 
-from eventlogging import (capsule_uuid, create_event_error, LogParser,
+from eventlogging import (capsule_uuid, create_event_error, load_plugins, LogParser,
                           get_reader, get_writer, validate, setup_logging,
                           uri_force_raw, uri_append_query_items
                           )
@@ -71,8 +71,13 @@ ap.add_argument(
     'used to write invalid events.  Invalid events are written using the '
     'EventError schema.'
 )
+ap.add_argument('--no-plugins', help='run without loading plug-ins',
+                action='store_false', dest='load_plugins')
 
 args = ap.parse_args()
+
+if args.load_plugins:
+    load_plugins()
 
 # Instantiate the LogParser to use for this processor.
 parser = LogParser(args.format)
