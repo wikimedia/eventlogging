@@ -41,7 +41,7 @@ import logging
 
 from eventlogging import (capsule_uuid, create_event_error, load_plugins, LogParser,
                           get_reader, get_writer, validate, setup_logging,
-                          uri_force_raw, uri_append_query_items
+                          uri_force_raw, uri_append_query_items, Event
                           )
 
 from jsonschema import ValidationError
@@ -138,10 +138,16 @@ for raw_event in get_reader(args.input):
         event['uuid'] = capsule_uuid(event)
 
     except ValidationError as e:
-        logging.error('Unable to validate: %s (%s)', raw_event, e.message)
+        logging.error('Unable to validate: %s (%s)', event, e.message)
+        # If we successfully parsed the event, we have an Event object.
+        # Send it as a serialized JSON string in the EventError's raw_event.
+        event_string = event
+        if isinstance(event_string, Event):
+          event_string = event.serialize()
+
         if writer_invalid:
             write_event_error(
-                writer_invalid, raw_event, e.message, 'validation', event
+                writer_invalid, event_string, e.message, 'validation', event
             )
 
     except Exception as e:
