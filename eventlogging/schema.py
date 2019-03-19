@@ -41,7 +41,7 @@ SCHEMA_WIKI_API = 'https://meta.wikimedia.org/w/api.php'
 # Template for schema article URLs. Interpolates SCIDs.
 # This URL format is for wiki based schema repositories only.
 SCHEMA_URL_FORMAT = (
-    SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2'
+    SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2&format=json'
 )
 
 # Use this regex to extract scids or validate
