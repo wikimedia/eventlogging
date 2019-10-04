@@ -1,38 +1,37 @@
-FROM debian:jessie
+FROM debian:stretch
 MAINTAINER Andrew Otto <otto@wikimedia.org>
+
+WORKDIR /tmp
+RUN apt-get update && \
+    apt-get install -y gnupg wget
 
 COPY debian-backports.list /etc/apt/sources.list.d/debian-backports.list
 COPY wikimedia.list /etc/apt/sources.list.d/wikimedia.list
 COPY wikimedia.key /tmp/wikimedia.key
+RUN apt-key add wikimedia.key > /dev/null
+RUN apt-get update
 
-RUN set -x; \
-  apt-key add /tmp/wikimedia.key \
-  && apt-get update
-
-RUN set -x; \
-  apt-get install  -y --no-install-recommends \
+RUN apt-get install -y --no-install-recommends \
   git                   \
   ca-certificates       \
-  python-dateutil       \
-  python-jsonschema     \
-  python-mysqldb        \
-  python-sqlalchemy     \
-  python-kafka          \
-  python-zmq            \
-  python-six            \
-  python-statsd         \
-  python-tornado        \
-  python-sprockets-mixins-statsd \
-  python-yaml           \
-  python-psutil         \
-  python-ua-parser
+  python3-dateutil       \
+  python3-jsonschema     \
+  python3-pygments       \
+  python3-mysql.connector \
+  python3-sqlalchemy     \
+  python3-kafka          \
+  python3-zmq            \
+  python3-statsd         \
+  python3-sprockets-mixins-statsd \
+  python3-yaml           \
+  python3-psutil         \
+  python3-ua-parser
 
-RUN set -x; \
-  mkdir -p /usr/src \
-  && git clone https://gerrit.wikimedia.org/r/p/eventlogging \
-    /usr/src/eventlogging \
-  && cd /usr/src/eventlogging \
-  && git submodule update --init
+RUN mkdir -p /usr/src
+WORKDIR /usr/src
+RUN git clone https://gerrit.wikimedia.org/r/p/eventlogging
+WORKDIR /usr/src/eventlogging
+RUN git submodule update --init
 
 ENV PYTHONPATH="/usr/src/eventlogging"
 ENV PATH="$PATH:/usr/src/eventlogging/bin"

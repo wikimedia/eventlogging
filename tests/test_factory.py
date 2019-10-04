@@ -6,7 +6,7 @@
   This module contains tests for :module:`eventlogging.factory`.
 
 """
-from __future__ import unicode_literals
+
 
 import unittest
 
@@ -65,8 +65,8 @@ class FactoryTestCase(unittest.TestCase):
             eventlogging.factory.cast_string("string")
         )
         self.assertEqual(
-            u"string",
-            eventlogging.factory.cast_string(u"string")
+            "string",
+            eventlogging.factory.cast_string("string")
         )
         self.assertEqual(
             1.1,

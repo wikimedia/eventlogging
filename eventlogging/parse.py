@@ -37,7 +37,7 @@
    '..' is the desired property name for the capturing group.
 
 """
-from __future__ import division, unicode_literals
+
 
 import calendar
 import re
@@ -152,12 +152,12 @@ class LogParser(object):
 
         # Space chars in format string should match any number of
         # space characters.
-        format = re.sub(' ', r'\s+', format)
+        format = re.sub(' ', r'\\s+', format)
 
         # Pattern that converts from format specifiers (e.g. %t, %d, etc.)
         # into a regex will extract into a matched group key name.
         format_to_regex_pattern = '(?<!%%)%%({(\w+)})?([%s])' % (
-            ''.join(self.format_specifiers.keys())
+            ''.join(list(self.format_specifiers.keys()))
         )
         raw = re.sub(
             re.compile(format_to_regex_pattern), self._repl, format
@@ -184,7 +184,7 @@ class LogParser(object):
         # Dict of capture group name to matched value, e.g userAgent: "..."
         matches = match.groupdict()
 
-        if 'capsule' not in matches.keys():
+        if 'capsule' not in list(matches.keys()):
             raise ValueError(
                 '\'capsule\' was not matched in line, but it is required',
                 (self.re.pattern, line)
@@ -229,11 +229,11 @@ class LogParser(object):
         # defined. This is true for any field.  If it is not in the format
         # string, it will not be 'cast', but just used as is.
         parsed_fields_from_line = {
-            k: f(matches[k]) for k, f in caster_dict.items()
+            k: f(matches[k]) for k, f in list(caster_dict.items())
             # skip the 'capsule' caster, since we already did it,
             # and also skip any casters that are already in the
             # capsule, since we already did those too.
-            if k != 'capsule' and k not in capsule.keys()
+            if k != 'capsule' and k not in list(capsule.keys())
         }
         # Add the parsed fields to the event capsule.
         capsule.update(parsed_fields_from_line)

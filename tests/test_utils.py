@@ -6,7 +6,7 @@
   This module contains tests for :module:`eventlogging.utils`.
 
 """
-from __future__ import unicode_literals
+
 
 import datetime
 import dateutil.parser
@@ -87,7 +87,7 @@ class UtilsTestCase(unittest.TestCase):
             'cert': '/path/to/cert',
             'allow_redirect': True
         }
-        for key in expected_kwargs.keys():
+        for key in list(expected_kwargs.keys()):
             self.assertEqual(etcd_kwargs[key], expected_kwargs[key])
 
     def test_datetime_from_uuid1(self):
@@ -152,7 +152,7 @@ class UtilsTestCase(unittest.TestCase):
             client_id.startswith('test-'),
             'client_id should start with test-'
         )
-        self.assertEquals(
+        self.assertEqual(
             group_id,
             'test',
             'group_id should equal test'

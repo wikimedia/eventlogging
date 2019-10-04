@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 This script generates a stream of requests to Beta Labs
@@ -13,10 +13,10 @@ import time
 import string
 import random
 import urllib
-import httplib
+import http.client
 import argparse
 from threading import Thread
-from Queue import Queue
+from queue import Queue
 from eventlogging import get_event_capsule_schema
 
 
@@ -82,7 +82,7 @@ class EventGenerator(object):
 
     def instantiate(self, schema, optional_values):
         event = {}
-        for name, prop in schema['properties'].iteritems():
+        for name, prop in schema['properties'].items():
             # Decide if the property should be instantiated
             if (prop.get('required', None) or optional_values == 'always' or
                     (optional_values == 'sometimes' and random.random() < .2)):
@@ -112,18 +112,18 @@ class EventGenerator(object):
 
 
 def get_schema(schema_name, schema_revision):
-    conn = httplib.HTTPSConnection(SCHEMA_HOST)
+    conn = http.client.HTTPSConnection(SCHEMA_HOST)
     conn.request("GET", SCHEMA_URL % (schema_name, schema_revision))
     data = json.loads(conn.getresponse().read())
     pages = data['query']['pages']
-    page_id = pages.keys()[0]
+    page_id = list(pages.keys())[0]
     schema_str = pages[page_id]['revisions'][0]['*']
     return json.loads(schema_str)
 
 
 def send_event(event, endpoint):
-    query_string = urllib.quote(json.dumps(event))
-    conn = httplib.HTTPConnection(endpoint)
+    query_string = urllib.parse.quote(json.dumps(event))
+    conn = http.client.HTTPConnection(endpoint)
     conn.request("GET", EL_URL % query_string)
 
 

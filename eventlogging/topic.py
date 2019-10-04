@@ -48,7 +48,7 @@ def find_topic_config_by_regex(topic):
     :param topic: the name of the topic
     :return: the topic config object
     """
-    for topic_spec_name, topic_spec in topic_config.items():
+    for topic_spec_name, topic_spec in list(topic_config.items()):
         if re.match(
                 '^\/.+\/$', topic_spec_name
             ) and re.match(
@@ -71,7 +71,7 @@ def init_topic_config(config_file):
 
     # Load the topic_config from the config file.
     with open(config_file) as f:
-        topic_config.update(yaml.load(f))
+        topic_config.update(yaml.safe_load(f))
 
 
 def update_topic_config(c):

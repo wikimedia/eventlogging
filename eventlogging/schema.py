@@ -9,7 +9,7 @@
   uses :module:`jsonschema`.
 
 """
-from __future__ import unicode_literals
+
 
 import logging
 import jsonschema
@@ -41,7 +41,8 @@ SCHEMA_WIKI_API = 'https://meta.wikimedia.org/w/api.php'
 # Template for schema article URLs. Interpolates SCIDs.
 # This URL format is for wiki based schema repositories only.
 SCHEMA_URL_FORMAT = (
-    SCHEMA_WIKI_API + '?action=jsonschema&title=%s&revid=%s&formatversion=2&format=json'
+    SCHEMA_WIKI_API +
+    '?action=jsonschema&title=%s&revid=%s&formatversion=2&format=json'
 )
 
 # Use this regex to extract scids or validate
@@ -229,7 +230,7 @@ def retrieve_schema(scid):
 def url_get_schema(url):
     """Retrieve schema from URL."""
     try:
-        schema = yaml.load(url_get(url))
+        schema = yaml.safe_load(url_get(url))
 
     except (ValueError, EnvironmentError) as ex:
         raise SchemaError('Schema fetch from %s failed: %s' % (url, ex))
@@ -307,8 +308,8 @@ def get_cached_scids():
     Returns a list of all cached scids.
     """
     scids = []
-    for name, schemas in get_schema_cache().items():
-        for revision in schemas.keys():
+    for name, schemas in list(get_schema_cache().items()):
+        for revision in list(schemas.keys()):
             scids.append((name, revision))
     return scids
 

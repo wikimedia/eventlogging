@@ -6,7 +6,7 @@
   This module contains tests for :class:`eventlogging.LogParser`.
 
 """
-from __future__ import unicode_literals
+
 
 import calendar
 import datetime

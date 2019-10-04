@@ -12,7 +12,7 @@
 """
 # flake8: noqa
 # pylint: disable=E0611, F0401, E1101
-from __future__ import unicode_literals
+
 
 import functools
 import hashlib
@@ -39,25 +39,13 @@ __all__ = ('url_get', 'integer_types', 'items', 'json', 'monotonic_clock',
            'string_types', 'unquote_plus', 'urisplit', 'urlopen', 'urlencode',
            'uuid5', 'long')
 
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    items = operator.methodcaller('items')
-    from urllib.request import urlopen
-    from urllib.parse import (unquote_to_bytes as unquote, urlsplit, urlencode,
-                              parse_qsl, SplitResult)
-    string_types = str,
-    integer_types = int,
-    long = int
-else:
-    items = operator.methodcaller('iteritems')
-    from urllib import unquote, urlencode
-    from urllib2 import urlopen
-    from urlparse import urlsplit, parse_qsl, SplitResult
-    string_types = (basestring, str, unicode)
-    integer_types = int, long
-    long = long
-
+items = operator.methodcaller('items')
+from urllib.request import urlopen
+from urllib.parse import (unquote_to_bytes as unquote, urlsplit, urlencode,
+                          parse_qsl, SplitResult)
+string_types = str,
+integer_types = int,
+long = int
 
 def urisplit(uri):
     """Like `urlparse.urlsplit`, except always parses query and fragment
@@ -70,10 +58,10 @@ def urisplit(uri):
     return SplitResult(scheme, netloc, path, query, fragment)
 
 
-def unquote_plus(unicode):
+def unquote_plus(str):
     """Replace %xx escapes by their single-character equivalent."""
-    unicode = unicode.replace('+', ' ')
-    bytes = unicode.encode('utf-8')
+    str = str.replace('+', ' ')
+    bytes = str.encode('utf-8')
     return unquote(bytes).decode('utf-8')
 
 

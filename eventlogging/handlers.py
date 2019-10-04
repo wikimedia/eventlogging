@@ -108,7 +108,7 @@ def kafka_python_writer(
     path,
     topic=None,
     key=None,
-    async=True,
+    async_mode=True,
     sync_timeout=2.0,
     blacklist=None,
     raw=False,
@@ -154,12 +154,12 @@ def kafka_python_writer(
             If raw=True, formatting will not happen, and the
             key will be used exactly as set.
 
-        *async (bool): If True, this will not block to wait for Kafka
+        *async_mode (bool): If True, this will not block to wait for Kafka
             message ACKs before producing the next message.  Defaults to True.
 
         *sync_timeout (float): If async is False, then we will wait this
             number of seconds for the produce response to return.
-            This paramater is ignored if async is True.
+            This paramater is ignored if async_mode is True.
 
         *blacklist (str): Pattern string matching a list of schemas that
             should not be written. This is useful to keep high volume schemas
@@ -194,7 +194,7 @@ def kafka_python_writer(
     }
     # If we are not using async, set default batch_size to 0.  This
     # will cause KafkaProducer to not do any batching.
-    if not async and 'batch_size' not in kafka_args:
+    if not async_mode and 'batch_size' not in kafka_args:
         kafka_args['batch_size'] = 0
 
     # kafka-python expects api_version to be a tuple of ints.
@@ -249,8 +249,7 @@ def kafka_python_writer(
 
         # Get the actual Kafka topic to which we will produce
         try:
-            message_topic = topic.encode('utf-8') if raw else \
-                event.topic(topic_format=topic).encode('utf-8')
+            message_topic = topic if raw else event.topic(topic_format=topic)
         # If we failed getting topic, log and skip the event.
         except TopicNotFound as e:
             logging.error('%s.  Skipping event' % e)
@@ -290,7 +289,7 @@ def kafka_python_writer(
 
             # If we didn't want async production, then get the
             # result of the future now.
-            if not async:
+            if not async_mode:
                 # This will raise an exception if the produce request
                 # fails or is timed out.
                 response_future.get(sync_timeout)
@@ -310,7 +309,7 @@ def kafka_confluent_writer(
     path,
     topic=None,
     key=None,
-    async=True,
+    async_mode=True,
     blacklist=None,
     raw=False,
     identity=None,
@@ -347,7 +346,7 @@ def kafka_confluent_writer(
             If raw=True, formatting will not happen, and the
             key will be used exactly as set.
 
-        *async (bool): If True, this will not block to wait for Kafka
+        *async_mode (bool): If True, this will not block to wait for Kafka
             message ACKs before producing the next message.  Defaults to True.
             If False and not otherwise specified, queue.buffering.max.ms and
             socket.blocking.max.ms will both be set to 1 to ensure
@@ -398,7 +397,7 @@ def kafka_confluent_writer(
     # If we are not using async, set default queue.buffering.max.ms
     # and socket.blocking.max.ms to get fast sync produce.
     # This may cause extra CPU usage.
-    if not async:
+    if not async_mode:
         if 'queue.buffering.max.ms' not in kafka_args:
             kafka_args['queue.buffering.max.ms'] = 1
         if 'socket.blocking.max.ms' not in kafka_args:
@@ -423,8 +422,8 @@ def kafka_confluent_writer(
 
             # Get the actual Kafka topic to which we will produce
             try:
-                message_topic = topic.encode('utf-8') if raw else \
-                    event.topic(topic_format=topic).encode('utf-8')
+                message_topic = topic if raw \
+                                else event.topic(topic_format=topic)
             # If we failed getting topic, log and skip the event.
             except TopicNotFound as e:
                 logging.error('%s.  Skipping event' % e)
@@ -476,7 +475,7 @@ def kafka_confluent_writer(
 
             # If not async, flush the Kafka produce buffer now and block
             # until we are done.
-            if not async:
+            if not async_mode:
                 kafka_producer.flush()
 
             # Non blocking poll
@@ -558,7 +557,7 @@ def sql_writer(
                 try:
                     store_sql_events(meta, scid, batch_events, replace=replace)
                 except jsonschema.SchemaError as e:
-                    logger.error(e.message)
+                    logger.error(e.args[0])
                 else:
                     if stats:
                         stats.incr('overall.inserted', len(batch_events))
@@ -570,12 +569,12 @@ def sql_writer(
     finally:
         # If there are any batched events remaining,
         # process them before exiting.
-        for batch_key, (batch_events, _) in events.iteritems():
+        for batch_key, (batch_events, _) in events.items():
             scid = batch_key[0]
             try:
                 store_sql_events(meta, scid, batch_events, replace=replace)
             except jsonschema.SchemaError as e:
-                logger.error(e.message)
+                logger.error(e.args[0])
             else:
                 if stats:
                     stats.incr('overall.inserted', len(batch_events))

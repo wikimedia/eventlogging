@@ -6,7 +6,7 @@
   This module contains test fixtures.
 
 """
-from __future__ import unicode_literals
+
 
 import copy
 import signal
@@ -285,8 +285,12 @@ class SchemaTestMixin(object):
 
     def assertIsInvalid(self, event, msg=None):
         """Assert that capsule 'event' object fails validation."""
-        with self.assertRaises(eventlogging.ValidationError, msg):
-            eventlogging.validate(event)
+        if msg is not None:
+            with self.assertRaises(eventlogging.ValidationError):
+                eventlogging.validate(event)
+        else:
+            with self.assertRaises(eventlogging.ValidationError, msg):
+                eventlogging.validate(event)
 
 
 class DatabaseTestMixin(SchemaTestMixin):

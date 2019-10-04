@@ -7,7 +7,7 @@
   data streams using ZeroMQ or UDP.
 
 """
-from __future__ import unicode_literals
+
 
 import io
 import re

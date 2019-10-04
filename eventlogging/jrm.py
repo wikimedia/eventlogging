@@ -7,7 +7,7 @@
   schemas and the objects they describe (hence 'jrm').
 
 """
-from __future__ import division, unicode_literals
+
 
 import collections
 import datetime
@@ -304,7 +304,8 @@ def _insert_sequential(table, events, replace=False):
         except sqlalchemy.exc.IntegrityError as e:
             # If we encouter a MySQL Duplicate key error,
             # just log and continue.
-            if type(e.orig) == _mysql.IntegrityError and e.orig[0] == 1062:
+            if type(e.orig) == _mysql.IntegrityError \
+                    and e.orig[0] == 1062:
                 logging.error(e)
         except sqlalchemy.exc.ProgrammingError:
             table.create()
@@ -329,7 +330,8 @@ def _insert_multi(table, events, replace=False):
         # call _insert_sequential() with these events
         # so that each event has a chance to be inserted
         # separately?
-        if type(e.orig) == _mysql.IntegrityError and e.orig[0] == 1062:
+        if type(e.orig) == _mysql.IntegrityError \
+                and e.orig[0] == 1062:
             logging.error(e)
     except sqlalchemy.exc.SQLAlchemyError:
         table.create(checkfirst=True)

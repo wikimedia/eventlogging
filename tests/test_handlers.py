@@ -6,7 +6,7 @@
   This module contains tests for :module:`eventlogging.handlers`.
 
 """
-from __future__ import unicode_literals
+
 
 import os
 import unittest

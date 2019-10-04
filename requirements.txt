@@ -1,9 +1,9 @@
-python-dateutil>=1.5
+py-dateutil
 jsonschema>=0.7
 confluent-kafka>=0.9.1.2
 kafka-python>=1.3.0
 mock==1.0.0
-# T212396, we are not compatible with 1.4.x, however Debian Stretch ships 1.3.7.
+# T212396, we are not compatible with 1.4.x, however Debian Stretch ships 1.3.7 and Buster 1.3.10
 mysqlclient>=1.3.7,<1.4.0
 pygments>=1.5
 psutil>=2.1.1

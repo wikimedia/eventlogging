@@ -6,7 +6,7 @@
   This module contains an Event class that wraps a dict and provides
   helper functions for transparently accessing metadata.
 """
-from __future__ import unicode_literals
+
 
 import re
 import socket
@@ -152,8 +152,10 @@ class Event(dict):
             meta = self.get('meta')
         # else use keys from EventCapsule as meta
         else:
-            capsule_keys = get_event_capsule_schema()['properties'].keys()
-            # don't include 'event' in capsule keys, it is the event data.
+            capsule_keys = list(
+                get_event_capsule_schema()['properties'].keys())
+            # don't include 'event' in capsule keys,
+            # it is the event data.
             meta = {
                 key: self.get(key) for key in capsule_keys if (
                     key != 'event' and key in self

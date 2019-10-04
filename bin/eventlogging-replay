@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Given an input stream of EventError events, this will attempt to reparse
@@ -17,12 +17,6 @@ the rawEvents and replay them to the configured output streams.
     'kafka:///brokerA:9092,brokerB:9092?async=False&topic=datacenter1.{meta[topic]}'
 
 """
-
-from __future__ import unicode_literals
-
-import sys
-reload(sys)  # noqa
-sys.setdefaultencoding('utf-8')
 
 import argparse
 import logging
@@ -75,7 +69,7 @@ def write_event_error(
             )
         )
     except Exception as e:
-        logging.error('Unable to create EventError object: %s' % e.message)
+        logging.error('Unable to create EventError object: %s' % str(e))
 
 
 input_stream = get_reader(args.input)
@@ -117,7 +111,7 @@ for event_error in input_stream:
         )
         if writer_invalid:
             write_event_error(
-                writer_invalid, raw_event, e.message, 'replay'
+                writer_invalid, raw_event, str(e), 'replay'
             )
         replay_fail_count += 1
         continue

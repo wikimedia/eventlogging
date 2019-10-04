@@ -7,7 +7,7 @@
   a particular function.
 
 """
-from __future__ import unicode_literals
+
 
 import copy
 import datetime
@@ -345,7 +345,7 @@ class ExtraFilter(logging.Filter):
         self.extra = extra
 
     def filter(self, record):
-        for k, v in self.extra.items():
+        for k, v in list(self.extra.items()):
             setattr(record, k, v)
         return True
 

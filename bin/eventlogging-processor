@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
   eventlogging-processor
@@ -30,19 +30,14 @@
   :license: GNU General Public Licence 2.0 or later
 
 """
-from __future__ import unicode_literals
-
-import sys
-reload(sys)  # noqa
-sys.setdefaultencoding('utf-8')
 
 import argparse
 import logging
 
-from eventlogging import (capsule_uuid, create_event_error, load_plugins, LogParser,
-                          get_reader, get_writer, validate, setup_logging,
-                          uri_force_raw, uri_append_query_items, Event
-                          )
+from eventlogging import (capsule_uuid, create_event_error, load_plugins,
+                          LogParser, get_reader, get_writer, validate,
+                          setup_logging, uri_force_raw,
+                          uri_append_query_items, Event)
 
 from jsonschema import ValidationError
 
@@ -125,7 +120,7 @@ def write_event_error(
             )
         )
     except Exception as e:
-        logging.error('Unable to create EventError object: %s' % e.message)
+        logging.error('Unable to create EventError object: %s' % str(e))
 
 
 for raw_event in get_reader(args.input):
@@ -138,23 +133,23 @@ for raw_event in get_reader(args.input):
         event['uuid'] = capsule_uuid(event)
 
     except ValidationError as e:
-        logging.error('Unable to validate: %s (%s)', event, e.message)
+        logging.error('Unable to validate: %s (%s)', event, e.args[0])
         # If we successfully parsed the event, we have an Event object.
         # Send it as a serialized JSON string in the EventError's raw_event.
         event_string = event
         if isinstance(event_string, Event):
-          event_string = event.serialize()
+            event_string = event.serialize()
 
         if writer_invalid:
             write_event_error(
-                writer_invalid, event_string, e.message, 'validation', event
+                writer_invalid, event_string, e.args[0], 'validation', event
             )
 
     except Exception as e:
-        logging.error('Unable to process: %s (%s)', raw_event, e.message)
+        logging.error('Unable to process: %s (%s)', raw_event, str(e))
         if writer_invalid:
             write_event_error(
-                writer_invalid, raw_event, e.message, 'processor', event
+                writer_invalid, raw_event, str(e), 'processor', event
             )
 
     else:

@@ -6,7 +6,7 @@
   This module contains tests for :module:`eventlogging.jrm`.
 
 """
-from __future__ import unicode_literals
+
 
 import datetime
 import itertools
