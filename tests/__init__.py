@@ -15,4 +15,3 @@ from .test_schema import *
 from .test_handlers import *
 from .test_topic import *
 from .test_utils import *
-from .test_service import *

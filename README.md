@@ -20,7 +20,6 @@ and schema-ed data.  It was originally developed to collect metrics from MediaWi
     - [eventlogging-processor](#eventlogging-processor)
     - [eventlogging-forwarder](#eventlogging-forwarder)
     - [eventlogging-multiplexer](#eventlogging-multiplexer)
-    - [eventlogging-service](#eventlogging-service)
 - [Consumer Handler Plugins](#consumer-handler-plugins)
 - [Examples](#examples)
 - [Logging](#logging)
@@ -77,7 +76,7 @@ Each JSON event object is expected to conform to a [JSON Schema](http://json-sch
 
 
 ### Schema Repositories
-EventLogging was originally designed with a single remote schema repository: [meta.wikimedia.org](https://meta.wikimedia.org/w/index.php?title=Special%3AAllPages&from=&to=&namespace=470).  At the moment, it still only supports this one remote repository.  Recently support has been added for pluggable local file based repositories.  Local repositories are currently only used by `eventlogging-service`, but more flexible repository support is planned.
+EventLogging was originally designed with a single remote schema repository: [meta.wikimedia.org](https://meta.wikimedia.org/w/index.php?title=Special%3AAllPages&from=&to=&namespace=470).  At the moment, it still only supports this one remote repository.  Recently support has been added for pluggable local file based repositories.
 
 ### Meta
 
@@ -255,10 +254,6 @@ sequence numbers to each line.
 Reads messages from one or more inputs and publish a muxed output stream
 containing all messages from all inputs.
 
-
-## eventlogging-service
-
-HTTP service that intakes JSON events via an HTTP POST, parses, validates, and produces them to configured outputs.
 
 # Consumer Handler Plugins
 `eventlogging-consumer` will attempt to load custom user created reader and writer handler plugins from the `EVENTLOGGING_PLUGIN_DIR` environment variable. It will automatically import *.py files in this directory.  This allows `eventlogging-consumer` to work with custom scheme URI handlers for reading or writing events.  You can use this to read or write to/from a to a new queue or database, or use it to do special filtering or transformation on events before

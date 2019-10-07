@@ -23,8 +23,7 @@ Otherwise, one of the docker subdirectories will be started.
 
 Anything after <component> will be passed as the arguments
 to docker run, so you may use CMD overrides to pass
-additional arguments to ENTRYPOINTS.  E.g.
-docker/run service file:///tmp/out.log
+additional arguments to ENTRYPOINTS.
 ```
 
 ```
@@ -85,22 +84,4 @@ root@925aff049d11:/# which eventlogging-consumer
 /srv/eventlogging/bin/eventlogging-consumer
 root@925aff049d11:/# eventlogging-consumer -h
 ...
-```
-
-## wikimedia/eventlogging-service - docker/service/Dockerfile
-
-```
-$ docker build --tag wikimedia/eventlogging-service ./docker
-...
-$ docker run -p 8085:8085 --name eventlogging-service-stdout wikimedia/eventlogging-serivice
-2015-12-30 18:26:44,052 (MainThread) Loading local schemas from /usr/src/eventlogging/config/schemas/jsonschema
-2015-12-30 18:26:44,054 (MainThread) Loading schema from file:///usr/src/eventlogging/config/schemas/jsonschema/mediawiki/revision_visibility_set/1.yaml
-2015-12-30 18:26:44,075 (MainThread) Loading schema from file:///usr/src/eventlogging/config/schemas/jsonschema/mediawiki/page_delete/1.yaml
-2015-12-30 18:26:44,097 (MainThread) Loading schema from file:///usr/src/eventlogging/config/schemas/jsonschema/mediawiki/page_restore/1.yaml
-2015-12-30 18:26:44,114 (MainThread) Loading schema from file:///usr/src/eventlogging/config/schemas/jsonschema/mediawiki/page_edit/1.yaml
-2015-12-30 18:26:44,136 (MainThread) Loading schema from file:///usr/src/eventlogging/config/schemas/jsonschema/mediawiki/page_move/1.yaml
-2015-12-30 18:26:44,157 (MainThread) Publishing valid JSON events to stdout://.
-
-# In another shell:
-$ curl -X POST -d @page_edit_record.json -H 'Content-Type: application/json' http://$(docker-machine ip default):8085/v1/events
 ```

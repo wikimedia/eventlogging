@@ -19,8 +19,7 @@ Otherwise, one of the docker subdirectories will be started.
 
 Anything after <component> will be passed as the arguments
 to docker run, so you may use CMD overrides to pass
-additional arguments to ENTRYPOINTS.  E.g.
-docker/run service file:///tmp/out.log
+additional arguments to ENTRYPOINTS.
 "
     exit 0
 fi
@@ -51,8 +50,6 @@ fi
 if [ "${component}" == 'dev' ]; then
     # mount local codebase if
     docker_args="-v $(pwd):/srv/eventlogging"
-elif [ "${component}" == 'service' ]; then
-    docker_args='-p 8085:8085'
 fi
 
 # Build and run the image

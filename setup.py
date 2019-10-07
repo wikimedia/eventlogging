@@ -52,7 +52,6 @@ setup(
         'eventlogging',
         'eventlogging.lib',
     ),
-    package_data={'eventlogging': ['service-spec.yaml']},
     scripts=(
         'bin/eventlogging-forwarder',
         'bin/eventlogging-multiplexer',
@@ -60,7 +59,6 @@ setup(
         'bin/eventlogging-devserver',
         'bin/eventlogging-processor',
         'bin/eventlogging-reporter',
-        'bin/eventlogging-service',
     ),
     zip_safe=False,
     test_suite='tests',

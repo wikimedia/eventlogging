@@ -242,7 +242,7 @@ def mock_url_get_schema(scid):
     """
 
     # Special case for test http get of non existent revision.
-    # See test_service.py test_get_schema_unexisting_version
+    # test_get_schema_unexisting_version
     if scid == ('TestMetaSchema', 1234):
         raise eventlogging.SchemaError('Mock HTTP SchemaError.')
 
