@@ -240,7 +240,7 @@ class SchemaTestCase(SchemaTestMixin, unittest.TestCase):
 
     def test_url_from_scid(self):
         f = 'https://meta.wikimedia.org/w/api.php?action=jsonschema' \
-            '&title=%s&revid=%s&formatversion=2'
+            '&title=%s&revid=%s&formatversion=2&format=json'
         scid = ('TestSchema', 123)
         self.assertEqual(
             eventlogging.schema.url_from_scid(scid),
