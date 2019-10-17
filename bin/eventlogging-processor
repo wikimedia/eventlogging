@@ -146,10 +146,10 @@ for raw_event in get_reader(args.input):
             )
 
     except Exception as e:
-        logging.error('Unable to process: %s (%s)', raw_event, str(e))
+        logging.error('Unable to process: %s (%s)', raw_event, e.args[0])
         if writer_invalid:
             write_event_error(
-                writer_invalid, raw_event, str(e), 'processor', event
+                writer_invalid, raw_event, e.args[0], 'processor', event
             )
 
     else:
