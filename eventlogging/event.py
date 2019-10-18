@@ -86,7 +86,7 @@ class Event(dict):
 
     def serialize(self):
         """Serializes this event as utf-8 JSON."""
-        return json.dumps(self, sort_keys=True).encode('utf-8')
+        return json.dumps(self, sort_keys=True)
 
     def schema(self, encapsulate=False):
         """
